@@ -439,7 +439,9 @@ function Header({ activePage, onNav }: { activePage: Page; onNav: (p: Page) => v
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-function Footer({ onNav }: { onNav: (p: Page) => void }) {
+function Footer() {
+  const year = new Date().getFullYear();
+
   return (
     <footer className="border-t border-border mt-16">
       <div className="max-w-5xl mx-auto px-5 md:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -451,14 +453,10 @@ function Footer({ onNav }: { onNav: (p: Page) => void }) {
             Mindex
           </span>
         </div>
-        <nav className="flex items-center gap-4 text-xs text-muted-foreground">
-          {(["home", "categories", "about"] as Page[]).map((p) => (
-            <button key={p} onClick={() => onNav(p)} className="hover:text-foreground capitalize transition-colors">
-              {p === "home" ? "Home" : p === "categories" ? "Categories" : "About"}
-            </button>
-          ))}
-        </nav>
         <p className="text-xs text-muted-foreground">Built for psychology students</p>
+        <p className="text-xs text-muted-foreground">
+          © {year} Mindex. All rights reserved.
+        </p>
       </div>
     </footer>
   );
@@ -988,7 +986,7 @@ export default function App() {
       {activePage === "categories" && <CategoriesPage onNav={handleNav} />}
       {activePage === "about" && <AboutPage />}
 
-      <Footer onNav={handleNav} />
+      <Footer />
     </div>
   );
 }
