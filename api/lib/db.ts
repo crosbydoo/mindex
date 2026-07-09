@@ -37,9 +37,9 @@ export async function ensureSchema(): Promise<void> {
         )
       `;
 
-      const rows = await sql<{ count: string }>`
+      const rows = (await sql`
         SELECT COUNT(*)::text AS count FROM entries
-      `;
+      `) as Array<{ count: string }>;
 
       if (Number(rows[0]?.count ?? 0) === 0) {
         for (const entry of seedData) {
