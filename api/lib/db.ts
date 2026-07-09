@@ -1,29 +1,11 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createRequire } from 'module';
 import { neon } from '@neondatabase/serverless';
+import type { DbEntryInput } from './types';
 
-export interface DbEntry {
-  id: number;
-  title: string;
-  abstract: string;
-  category: string;
-  year: number;
-  author: string;
-  source: string;
-  type: string;
-  url: string;
-}
+const require = createRequire(import.meta.url);
+const seedData = require('../../data/seed-entries.json') as DbEntryInput[];
 
-export interface DbEntryInput {
-  title: string;
-  abstract: string;
-  category: string;
-  year: number;
-  author: string;
-  source: string;
-  type: string;
-  url: string;
-}
+export type { DbEntry, DbEntryInput } from './types';
 
 let schemaReady: Promise<void> | null = null;
 
@@ -33,11 +15,6 @@ function getSql() {
     throw new Error('POSTGRES_URL is not configured');
   }
   return neon(url);
-}
-
-function loadSeedData(): DbEntryInput[] {
-  const file = join(process.cwd(), 'data', 'seed-entries.json');
-  return JSON.parse(readFileSync(file, 'utf8')) as DbEntryInput[];
 }
 
 export async function ensureSchema(): Promise<void> {
@@ -65,8 +42,7 @@ export async function ensureSchema(): Promise<void> {
       `;
 
       if (Number(rows[0]?.count ?? 0) === 0) {
-        const seed = loadSeedData();
-        for (const entry of seed) {
+        for (const entry of seedData) {
           await sql`
             INSERT INTO entries (title, abstract, category, year, author, source, type, url)
             VALUES (
@@ -88,20 +64,20 @@ export async function ensureSchema(): Promise<void> {
   await schemaReady;
 }
 
-export async function listEntries(): Promise<DbEntry[]> {
+export async function listEntries() {
   await ensureSchema();
   const sql = getSql();
-  return sql<DbEntry>`
+  return sql`
     SELECT id, title, abstract, category, year, author, source, type, url
     FROM entries
     ORDER BY year DESC, id DESC
   `;
 }
 
-export async function createEntry(input: DbEntryInput): Promise<DbEntry> {
+export async function createEntry(input: DbEntryInput) {
   await ensureSchema();
   const sql = getSql();
-  const rows = await sql<DbEntry>`
+  const rows = await sql`
     INSERT INTO entries (title, abstract, category, year, author, source, type, url)
     VALUES (
       ${input.title},
@@ -118,10 +94,10 @@ export async function createEntry(input: DbEntryInput): Promise<DbEntry> {
   return rows[0];
 }
 
-export async function updateEntry(id: number, input: DbEntryInput): Promise<DbEntry | null> {
+export async function updateEntry(id: number, input: DbEntryInput) {
   await ensureSchema();
   const sql = getSql();
-  const rows = await sql<DbEntry>`
+  const rows = await sql`
     UPDATE entries
     SET
       title = ${input.title},
@@ -138,7 +114,7 @@ export async function updateEntry(id: number, input: DbEntryInput): Promise<DbEn
   return rows[0] ?? null;
 }
 
-export async function deleteEntry(id: number): Promise<boolean> {
+export async function deleteEntry(id: number) {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createAdminToken, verifyPassword } from '../_lib/auth';
+import { createAdminToken, verifyPassword } from '../lib/auth';
+import { parseJsonBody } from '../lib/body';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -7,8 +8,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (!process.env.ADMIN_PASSWORD) {
+    return res.status(503).json({ error: 'ADMIN_PASSWORD is not configured on the server' });
+  }
+
   try {
-    const { password } = (req.body ?? {}) as { password?: string };
+    const { password } = parseJsonBody<{ password?: string }>(req);
     if (!password || !verifyPassword(password)) {
       return res.status(401).json({ error: 'Invalid password' });
     }

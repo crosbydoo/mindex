@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import type { VercelRequest } from '@vercel/node';
 
 const SESSION_LABEL = 'mindex-admin-session';
@@ -18,8 +18,8 @@ export function verifyPassword(password: string): boolean {
     return false;
   }
 
-  const a = Buffer.from(password);
-  const b = Buffer.from(expected);
+  const a = Buffer.from(password, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
   if (a.length !== b.length) {
     return false;
   }
@@ -34,8 +34,8 @@ export function verifyAdminToken(token: string | undefined): boolean {
 
   try {
     const expected = createAdminToken();
-    const a = Buffer.from(token);
-    const b = Buffer.from(expected);
+    const a = Buffer.from(token, 'utf8');
+    const b = Buffer.from(expected, 'utf8');
     if (a.length !== b.length) {
       return false;
     }

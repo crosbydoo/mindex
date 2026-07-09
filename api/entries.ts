@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireAdmin } from './_lib/auth';
+import { requireAdmin } from './lib/auth';
+import { parseJsonBody } from './lib/body';
 import {
   createEntry,
   deleteEntry,
   listEntries,
   updateEntry,
   type DbEntryInput,
-} from './_lib/db';
+} from './lib/db';
 
 function parseId(value: string | string[] | undefined): number | null {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -14,9 +15,9 @@ function parseId(value: string | string[] | undefined): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-function parseBody(req: VercelRequest): DbEntryInput | null {
-  const body = req.body as Partial<DbEntryInput> | undefined;
-  if (!body?.title || !body.abstract || !body.category || !body.author || !body.source || !body.type) {
+function parseEntryBody(req: VercelRequest): DbEntryInput | null {
+  const body = parseJsonBody<Partial<DbEntryInput>>(req);
+  if (!body.title || !body.abstract || !body.category || !body.author || !body.source || !body.type) {
     return null;
   }
 
@@ -44,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      const input = parseBody(req);
+      const input = parseEntryBody(req);
       if (!input || !Number.isInteger(input.year)) {
         return res.status(400).json({ error: 'Invalid entry payload' });
       }
@@ -55,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'PUT') {
       const id = parseId(req.query.id);
-      const input = parseBody(req);
+      const input = parseEntryBody(req);
       if (!id || !input || !Number.isInteger(input.year)) {
         return res.status(400).json({ error: 'Invalid entry payload' });
       }
@@ -86,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('entries api error', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return res.status(500).json({ error: message });
   }
 }
