@@ -1,24 +1,46 @@
 import {
+  AlertTriangle,
   ArrowRight,
   Baby,
-  BookOpen,
+  BookMarked,
   Brain,
+  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Coffee,
   ExternalLink,
+  Eye,
+  EyeOff,
+  FileText,
   FlaskConical,
   GitPullRequest,
   GraduationCap,
   HeartPulse,
   Layers,
+  LayoutDashboard,
+  Lock,
+  LogOut,
   Mail,
+  Pencil,
+  Plus,
   Search,
   SlidersHorizontal,
+  Trash2,
   Users,
-  X,
+  X
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
+function PsiIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <path d="M12 3v18M6 3C6 9.627 8.686 14 12 14c3.314 0 6-4.373 6-11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M8 21h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 
 // ─── Types & Data ─────────────────────────────────────────────────────────────
 
@@ -46,304 +68,16 @@ interface Entry {
   url: string;
 }
 
-const ALL_ENTRIES: Entry[] = [
-  {
-    id: 1,
-    title: "Attachment Theory and Its Implications for Psychotherapy",
-    abstract:
-      "This paper examines Bowlby's attachment theory and its contemporary applications in therapeutic contexts, exploring how early relational patterns shape adult psychological functioning and treatment outcomes.",
-    category: "Clinical Psychology",
-    year: 2023,
-    author: "Sarah Chen, Marcus Webb",
-    source: "Journal of Clinical Psychology",
-    type: "Journal",
-    url: "#",
-  },
-  {
-    id: 2,
-    title: "Cognitive Biases in Decision-Making Under Uncertainty",
-    abstract:
-      "A systematic review of heuristics and cognitive biases affecting judgment under uncertainty, with implications for behavioral economics and clinical decision-making frameworks.",
-    category: "Cognitive Psychology",
-    year: 2022,
-    author: "Daniel Kahneman Jr., Elena Sorokina",
-    source: "Psychological Review",
-    type: "Literature Review",
-    url: "#",
-  },
-  {
-    id: 3,
-    title: "Social Identity and Intergroup Conflict: A Meta-Analysis",
-    abstract:
-      "Meta-analytic synthesis of 147 studies examining the relationship between social identity salience and intergroup hostility, covering data from 1980–2022.",
-    category: "Social Psychology",
-    year: 2023,
-    author: "Priya Nair, James Okonkwo",
-    source: "Journal of Personality and Social Psychology",
-    type: "Journal",
-    url: "#",
-  },
-  {
-    id: 4,
-    title: "Childhood Adversity and Neuroplasticity in Adolescence",
-    abstract:
-      "Longitudinal study tracking structural brain changes in adolescents with documented early adversity, using MRI data from 312 participants over six years.",
-    category: "Developmental Psychology",
-    year: 2021,
-    author: "Amara Diallo, Kenji Murakami",
-    source: "Developmental Psychopathology",
-    type: "Article",
-    url: "#",
-  },
-  {
-    id: 5,
-    title: "Mindfulness-Based Cognitive Therapy for Recurrent Depression",
-    abstract:
-      "Randomized controlled trial evaluating MBCT efficacy in reducing relapse rates among adults with three or more prior major depressive episodes over a 24-month follow-up.",
-    category: "Mental Health",
-    year: 2022,
-    author: "Lucia Ferretti, Aaron Moss",
-    source: "JAMA Psychiatry",
-    type: "Article",
-    url: "#",
-  },
-  {
-    id: 6,
-    title: "Self-Determination Theory in Educational Settings",
-    abstract:
-      "An investigation of intrinsic vs. extrinsic motivation frameworks in K-12 and higher education contexts, with recommendations for pedagogical practice.",
-    category: "Educational Psychology",
-    year: 2020,
-    author: "Richard Ryan Jr., Isabel Monteiro",
-    source: "Educational Psychologist",
-    type: "Journal",
-    url: "#",
-  },
-  {
-    id: 7,
-    title: "Mixed-Methods Research Design in Clinical Psychology",
-    abstract:
-      "Guidelines for integrating qualitative and quantitative methodologies in psychological research, with worked examples from anxiety disorder treatment studies.",
-    category: "Research Methods",
-    year: 2023,
-    author: "Oliver Strauss, Naomi Adeyemi",
-    source: "Psychological Methods",
-    type: "Literature Review",
-    url: "#",
-  },
-  {
-    id: 8,
-    title: "Emotion Regulation Strategies and Borderline Personality Disorder",
-    abstract:
-      "Comparative analysis of DBT, schema therapy, and transference-focused psychotherapy outcomes across three clinical cohorts, with a focus on emotional dysregulation.",
-    category: "Clinical Psychology",
-    year: 2021,
-    author: "Mariana Costa, Elias Bergmann",
-    source: "Behaviour Research and Therapy",
-    type: "Journal",
-    url: "#",
-  },
-  {
-    id: 9,
-    title: "Language Acquisition and Theory of Mind in Early Childhood",
-    abstract:
-      "Cross-cultural study examining the relationship between vocabulary development and false-belief understanding in children aged 3–6 across five countries.",
-    category: "Developmental Psychology",
-    year: 2022,
-    author: "Hana Petrov, Carlos Mendez",
-    source: "Child Development",
-    type: "Article",
-    url: "#",
-  },
-  {
-    id: 10,
-    title: "The Psychology of Misinformation and Belief Updating",
-    abstract:
-      "Experimental investigation of how corrections and retractions influence persistent belief in misinformation, with analysis across political and health domains.",
-    category: "Cognitive Psychology",
-    year: 2023,
-    author: "Tara Singh, Liam O'Brien",
-    source: "Cognition",
-    type: "Article",
-    url: "#",
-  },
-  {
-    id: 11,
-    title: "Social Media Use and Adolescent Mental Health: A Systematic Review",
-    abstract:
-      "Systematic review of 89 longitudinal studies examining associations between social media engagement patterns and anxiety, depression, and self-esteem in adolescents.",
-    category: "Mental Health",
-    year: 2023,
-    author: "Fatima Al-Hassan, Tom Bergqvist",
-    source: "Clinical Psychology Review",
-    type: "Literature Review",
-    url: "#",
-  },
-  {
-    id: 12,
-    title: "Stereotype Threat and Academic Performance in Higher Education",
-    abstract:
-      "Field experiment and survey study examining how identity-relevant stereotypes suppress test performance and reduce persistence among first-generation university students.",
-    category: "Educational Psychology",
-    year: 2021,
-    author: "Denise Warner, Kwame Boateng",
-    source: "Journal of Educational Psychology",
-    type: "Article",
-    url: "#",
-  },
-  {
-    id: 13,
-    title: "Structural Equation Modeling in Psychological Research: A Primer",
-    abstract:
-      "Introduction to SEM techniques for graduate students, covering path analysis, confirmatory factor analysis, and mediation/moderation testing with annotated R examples.",
-    category: "Research Methods",
-    year: 2020,
-    author: "Yuki Tanaka",
-    source: "Psychological Science Methods",
-    type: "Thesis",
-    url: "#",
-  },
-  {
-    id: 14,
-    title: "Conformity and Obedience Revisited: Post-Replication Studies",
-    abstract:
-      "Replications and extensions of Milgram and Asch paradigms in contemporary samples, assessing generalizability and identifying moderating social contextual factors.",
-    category: "Social Psychology",
-    year: 2022,
-    author: "Nadia Volkov, Samuel Henriksen",
-    source: "Social Psychological and Personality Science",
-    type: "Journal",
-    url: "#",
-  },
-  {
-    id: 15,
-    title: "Trauma-Informed Care: Principles and Implementation",
-    abstract:
-      "Practice-focused review of trauma-informed frameworks in community mental health settings, including staff training models and outcome measurement strategies.",
-    category: "Clinical Psychology",
-    year: 2020,
-    author: "Rosa Figueroa, Ben Okeke",
-    source: "Psychological Trauma: Theory, Research, Practice, and Policy",
-    type: "Literature Review",
-    url: "#",
-  },
-  {
-    id: 16,
-    title: "Working Memory Capacity and Reading Comprehension",
-    abstract:
-      "Investigation of the role of phonological and visuospatial working memory components in text comprehension across reading skill levels in adult readers.",
-    category: "Cognitive Psychology",
-    year: 2021,
-    author: "Claire Beaumont, Ravi Patel",
-    source: "Journal of Experimental Psychology: General",
-    type: "Article",
-    url: "#",
-  },
-  {
-    id: 17,
-    title: "Peer Victimization and Internalizing Disorders in Middle School",
-    abstract:
-      "Two-year cohort study tracking the longitudinal effects of bullying and social exclusion on anxiety and depressive symptoms in 1,240 students aged 11–14.",
-    category: "Developmental Psychology",
-    year: 2023,
-    author: "Ingrid Svensson, Marcus Osei",
-    source: "Journal of Child Psychology and Psychiatry",
-    type: "Journal",
-    url: "#",
-  },
-  {
-    id: 18,
-    title: "Burnout Among Frontline Mental Health Workers Post-Pandemic",
-    abstract:
-      "Cross-sectional survey of 640 mental health clinicians examining prevalence, predictors, and protective factors of professional burnout following the COVID-19 pandemic.",
-    category: "Mental Health",
-    year: 2023,
-    author: "Ayasha Morales, David Lindstrom",
-    source: "Professional Psychology: Research and Practice",
-    type: "Article",
-    url: "#",
-  },
-];
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES: Category[] = [
-  "Clinical Psychology",
-  "Cognitive Psychology",
-  "Developmental Psychology",
-  "Educational Psychology",
-  "Mental Health",
-  "Research Methods",
-  "Social Psychology",
+  "Clinical Psychology", "Cognitive Psychology", "Developmental Psychology",
+  "Educational Psychology", "Mental Health", "Research Methods", "Social Psychology",
 ];
-
 const TYPES: EntryType[] = ["Journal", "Article", "Thesis", "Literature Review"];
 const YEARS = [2020, 2021, 2022, 2023];
 const PER_PAGE = 6;
-
-const CATEGORY_META: Record<
-  Category,
-  { color: string; bg: string; icon: React.ReactNode; description: string; journals: string[] }
-> = {
-  "Clinical Psychology": {
-    color: "text-[#2e4057]",
-    bg: "bg-[#dce8f0]",
-    icon: <HeartPulse size={20} />,
-    description:
-      "Study of psychological disorders, assessment, and evidence-based therapeutic interventions across clinical populations.",
-    journals: ["Journal of Clinical Psychology", "Behaviour Research and Therapy", "Clinical Psychology Review"],
-  },
-  "Cognitive Psychology": {
-    color: "text-[#2a5c3a]",
-    bg: "bg-[#ddf0e5]",
-    icon: <Brain size={20} />,
-    description:
-      "Exploration of mental processes including perception, memory, attention, language, reasoning, and decision-making.",
-    journals: ["Cognition", "Psychological Review", "Journal of Experimental Psychology: General"],
-  },
-  "Developmental Psychology": {
-    color: "text-[#5c3a2a]",
-    bg: "bg-[#f0e8dc]",
-    icon: <Baby size={20} />,
-    description:
-      "Lifespan study of psychological change — from prenatal development through childhood, adolescence, and aging.",
-    journals: ["Child Development", "Developmental Psychopathology", "Journal of Child Psychology and Psychiatry"],
-  },
-  "Educational Psychology": {
-    color: "text-[#4a2a5c]",
-    bg: "bg-[#e8dcf0]",
-    icon: <GraduationCap size={20} />,
-    description:
-      "How people learn and develop in educational contexts, covering motivation, instruction, assessment, and learning differences.",
-    journals: ["Educational Psychologist", "Journal of Educational Psychology", "Learning and Instruction"],
-  },
-  "Mental Health": {
-    color: "text-[#5c2a2a]",
-    bg: "bg-[#f0dcdc]",
-    icon: <Layers size={20} />,
-    description:
-      "Psychological well-being, mental illness prevalence, prevention strategies, and community mental health systems.",
-    journals: ["JAMA Psychiatry", "Clinical Psychology Review", "Professional Psychology: Research and Practice"],
-  },
-  "Research Methods": {
-    color: "text-[#3a5c2a]",
-    bg: "bg-[#e8f0dc]",
-    icon: <FlaskConical size={20} />,
-    description:
-      "Quantitative, qualitative, and mixed-methods approaches to designing and conducting psychological research.",
-    journals: ["Psychological Methods", "Psychological Science Methods", "Behavior Research Methods"],
-  },
-  "Social Psychology": {
-    color: "text-[#2a5c58]",
-    bg: "bg-[#dcf0ee]",
-    icon: <Users size={20} />,
-    description:
-      "How individuals think, feel, and behave in social contexts — including identity, influence, prejudice, and group dynamics.",
-    journals: [
-      "Journal of Personality and Social Psychology",
-      "Social Psychological and Personality Science",
-      "Group Processes & Intergroup Relations",
-    ],
-  },
-};
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? "psylit2024";
 
 const CATEGORY_COLORS: Record<Category, string> = {
   "Clinical Psychology": "bg-[#dce8f0] text-[#2e4057]",
@@ -354,6 +88,60 @@ const CATEGORY_COLORS: Record<Category, string> = {
   "Research Methods": "bg-[#e8f0dc] text-[#3a5c2a]",
   "Social Psychology": "bg-[#dcf0ee] text-[#2a5c58]",
 };
+
+const CATEGORY_META: Record<Category, { color: string; bg: string; icon: React.ReactNode; description: string; journals: string[] }> = {
+  "Clinical Psychology": { color: "text-[#2e4057]", bg: "bg-[#dce8f0]", icon: <HeartPulse size={20} />, description: "Study of psychological disorders, assessment, and evidence-based therapeutic interventions across clinical populations.", journals: ["Journal of Clinical Psychology", "Behaviour Research and Therapy", "Clinical Psychology Review"] },
+  "Cognitive Psychology": { color: "text-[#2a5c3a]", bg: "bg-[#ddf0e5]", icon: <Brain size={20} />, description: "Exploration of mental processes including perception, memory, attention, language, reasoning, and decision-making.", journals: ["Cognition", "Psychological Review", "Journal of Experimental Psychology: General"] },
+  "Developmental Psychology": { color: "text-[#5c3a2a]", bg: "bg-[#f0e8dc]", icon: <Baby size={20} />, description: "Lifespan study of psychological change — from prenatal development through childhood, adolescence, and aging.", journals: ["Child Development", "Developmental Psychopathology", "Journal of Child Psychology and Psychiatry"] },
+  "Educational Psychology": { color: "text-[#4a2a5c]", bg: "bg-[#e8dcf0]", icon: <GraduationCap size={20} />, description: "How people learn and develop in educational contexts, covering motivation, instruction, assessment, and learning differences.", journals: ["Educational Psychologist", "Journal of Educational Psychology", "Learning and Instruction"] },
+  "Mental Health": { color: "text-[#5c2a2a]", bg: "bg-[#f0dcdc]", icon: <Layers size={20} />, description: "Psychological well-being, mental illness prevalence, prevention strategies, and community mental health systems.", journals: ["JAMA Psychiatry", "Clinical Psychology Review", "Professional Psychology: Research and Practice"] },
+  "Research Methods": { color: "text-[#3a5c2a]", bg: "bg-[#e8f0dc]", icon: <FlaskConical size={20} />, description: "Quantitative, qualitative, and mixed-methods approaches to designing and conducting psychological research.", journals: ["Psychological Methods", "Psychological Science Methods", "Behavior Research Methods"] },
+  "Social Psychology": { color: "text-[#2a5c58]", bg: "bg-[#dcf0ee]", icon: <Users size={20} />, description: "How individuals think, feel, and behave in social contexts — including identity, influence, prejudice, and group dynamics.", journals: ["Journal of Personality and Social Psychology", "Social Psychological and Personality Science", "Group Processes & Intergroup Relations"] },
+};
+
+const SEED_ENTRIES: Entry[] = [
+  { id: 1, title: "Attachment Theory and Its Implications for Psychotherapy", abstract: "This paper examines Bowlby's attachment theory and its contemporary applications in therapeutic contexts, exploring how early relational patterns shape adult psychological functioning and treatment outcomes.", category: "Clinical Psychology", year: 2023, author: "Sarah Chen, Marcus Webb", source: "Journal of Clinical Psychology", type: "Journal", url: "#" },
+  { id: 2, title: "Cognitive Biases in Decision-Making Under Uncertainty", abstract: "A systematic review of heuristics and cognitive biases affecting judgment under uncertainty, with implications for behavioral economics and clinical decision-making frameworks.", category: "Cognitive Psychology", year: 2022, author: "Daniel Kahneman Jr., Elena Sorokina", source: "Psychological Review", type: "Literature Review", url: "#" },
+  { id: 3, title: "Social Identity and Intergroup Conflict: A Meta-Analysis", abstract: "Meta-analytic synthesis of 147 studies examining the relationship between social identity salience and intergroup hostility, covering data from 1980–2022.", category: "Social Psychology", year: 2023, author: "Priya Nair, James Okonkwo", source: "Journal of Personality and Social Psychology", type: "Journal", url: "#" },
+  { id: 4, title: "Childhood Adversity and Neuroplasticity in Adolescence", abstract: "Longitudinal study tracking structural brain changes in adolescents with documented early adversity, using MRI data from 312 participants over six years.", category: "Developmental Psychology", year: 2021, author: "Amara Diallo, Kenji Murakami", source: "Developmental Psychopathology", type: "Article", url: "#" },
+  { id: 5, title: "Mindfulness-Based Cognitive Therapy for Recurrent Depression", abstract: "Randomized controlled trial evaluating MBCT efficacy in reducing relapse rates among adults with three or more prior major depressive episodes over a 24-month follow-up.", category: "Mental Health", year: 2022, author: "Lucia Ferretti, Aaron Moss", source: "JAMA Psychiatry", type: "Article", url: "#" },
+  { id: 6, title: "Self-Determination Theory in Educational Settings", abstract: "An investigation of intrinsic vs. extrinsic motivation frameworks in K-12 and higher education contexts, with recommendations for pedagogical practice.", category: "Educational Psychology", year: 2020, author: "Richard Ryan Jr., Isabel Monteiro", source: "Educational Psychologist", type: "Journal", url: "#" },
+  { id: 7, title: "Mixed-Methods Research Design in Clinical Psychology", abstract: "Guidelines for integrating qualitative and quantitative methodologies in psychological research, with worked examples from anxiety disorder treatment studies.", category: "Research Methods", year: 2023, author: "Oliver Strauss, Naomi Adeyemi", source: "Psychological Methods", type: "Literature Review", url: "#" },
+  { id: 8, title: "Emotion Regulation Strategies and Borderline Personality Disorder", abstract: "Comparative analysis of DBT, schema therapy, and transference-focused psychotherapy outcomes across three clinical cohorts, with a focus on emotional dysregulation.", category: "Clinical Psychology", year: 2021, author: "Mariana Costa, Elias Bergmann", source: "Behaviour Research and Therapy", type: "Journal", url: "#" },
+  { id: 9, title: "Language Acquisition and Theory of Mind in Early Childhood", abstract: "Cross-cultural study examining the relationship between vocabulary development and false-belief understanding in children aged 3–6 across five countries.", category: "Developmental Psychology", year: 2022, author: "Hana Petrov, Carlos Mendez", source: "Child Development", type: "Article", url: "#" },
+  { id: 10, title: "The Psychology of Misinformation and Belief Updating", abstract: "Experimental investigation of how corrections and retractions influence persistent belief in misinformation, with analysis across political and health domains.", category: "Cognitive Psychology", year: 2023, author: "Tara Singh, Liam O'Brien", source: "Cognition", type: "Article", url: "#" },
+  { id: 11, title: "Social Media Use and Adolescent Mental Health: A Systematic Review", abstract: "Systematic review of 89 longitudinal studies examining associations between social media engagement patterns and anxiety, depression, and self-esteem in adolescents.", category: "Mental Health", year: 2023, author: "Fatima Al-Hassan, Tom Bergqvist", source: "Clinical Psychology Review", type: "Literature Review", url: "#" },
+  { id: 12, title: "Stereotype Threat and Academic Performance in Higher Education", abstract: "Field experiment and survey study examining how identity-relevant stereotypes suppress test performance and reduce persistence among first-generation university students.", category: "Educational Psychology", year: 2021, author: "Denise Warner, Kwame Boateng", source: "Journal of Educational Psychology", type: "Article", url: "#" },
+  { id: 13, title: "Structural Equation Modeling in Psychological Research: A Primer", abstract: "Introduction to SEM techniques for graduate students, covering path analysis, confirmatory factor analysis, and mediation/moderation testing with annotated R examples.", category: "Research Methods", year: 2020, author: "Yuki Tanaka", source: "Psychological Science Methods", type: "Thesis", url: "#" },
+  { id: 14, title: "Conformity and Obedience Revisited: Post-Replication Studies", abstract: "Replications and extensions of Milgram and Asch paradigms in contemporary samples, assessing generalizability and identifying moderating social contextual factors.", category: "Social Psychology", year: 2022, author: "Nadia Volkov, Samuel Henriksen", source: "Social Psychological and Personality Science", type: "Journal", url: "#" },
+  { id: 15, title: "Trauma-Informed Care: Principles and Implementation", abstract: "Practice-focused review of trauma-informed frameworks in community mental health settings, including staff training models and outcome measurement strategies.", category: "Clinical Psychology", year: 2020, author: "Rosa Figueroa, Ben Okeke", source: "Psychological Trauma: Theory, Research, Practice, and Policy", type: "Literature Review", url: "#" },
+  { id: 16, title: "Working Memory Capacity and Reading Comprehension", abstract: "Investigation of the role of phonological and visuospatial working memory components in text comprehension across reading skill levels in adult readers.", category: "Cognitive Psychology", year: 2021, author: "Claire Beaumont, Ravi Patel", source: "Journal of Experimental Psychology: General", type: "Article", url: "#" },
+  { id: 17, title: "Peer Victimization and Internalizing Disorders in Middle School", abstract: "Two-year cohort study tracking the longitudinal effects of bullying and social exclusion on anxiety and depressive symptoms in 1,240 students aged 11–14.", category: "Developmental Psychology", year: 2023, author: "Ingrid Svensson, Marcus Osei", source: "Journal of Child Psychology and Psychiatry", type: "Journal", url: "#" },
+  { id: 18, title: "Burnout Among Frontline Mental Health Workers Post-Pandemic", abstract: "Cross-sectional survey of 640 mental health clinicians examining prevalence, predictors, and protective factors of professional burnout following the COVID-19 pandemic.", category: "Mental Health", year: 2023, author: "Ayasha Morales, David Lindstrom", source: "Professional Psychology: Research and Practice", type: "Article", url: "#" },
+];
+
+// ─── Global entries state (lifted so Admin and Home share data) ───────────────
+
+function useEntries() {
+  const [entries, setEntries] = useState<Entry[]>(SEED_ENTRIES);
+  const nextId = useRef(entries.length + 1);
+
+  const addEntry = (e: Omit<Entry, "id">) => {
+    const newEntry = { ...e, id: nextId.current++ };
+    setEntries((prev) => [newEntry, ...prev]);
+    return newEntry;
+  };
+
+  const updateEntry = (updated: Entry) => {
+    setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+  };
+
+  const deleteEntry = (id: number) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  return { entries, addEntry, updateEntry, deleteEntry };
+}
 
 // ─── Shared Header ────────────────────────────────────────────────────────────
 
@@ -367,8 +155,8 @@ function Header({ activePage, onNav }: { activePage: Page; onNav: (p: Page) => v
           onClick={() => onNav("home")}
           className="flex items-center gap-2.5 group text-left"
         >
-          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center shrink-0">
-            <BookOpen size={14} className="text-primary-foreground" />
+           <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center shrink-0">
+            <PsiIcon size={14} className="text-primary-foreground" />
           </div>
           <div className="flex flex-col items-start leading-tight">
             <span
@@ -447,7 +235,7 @@ function Footer() {
       <div className="max-w-5xl mx-auto px-5 md:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-primary rounded flex items-center justify-center">
-            <BookOpen size={10} className="text-primary-foreground" />
+            <PsiIcon size={10} className="text-primary-foreground" />
           </div>
           <span className="text-sm text-muted-foreground" style={{ fontFamily: "'Lora', serif" }}>
             Mindex
@@ -486,10 +274,92 @@ function SkeletonCard() {
   );
 }
 
+// ─── Literature Detail Modal ──────────────────────────────────────────────────
+
+function LiteratureModal({ entry, onClose }: { entry: Entry; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" />
+      <div
+        className="relative bg-card w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-xl shadow-2xl border border-border flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle (mobile) */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-border" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-border">
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium font-mono ${CATEGORY_COLORS[entry.category]}`}>
+                {entry.category}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono border border-border px-2 py-1 rounded">{entry.type}</span>
+              <span className="text-xs text-muted-foreground font-mono">{entry.year}</span>
+            </div>
+            <h2 className="text-lg font-semibold text-foreground leading-snug" style={{ fontFamily: "'Lora', serif" }}>
+              {entry.title}
+            </h2>
+          </div>
+          <button onClick={onClose} className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors mt-0.5">
+            <X size={17} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 flex flex-col gap-5 flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Author(s)</p>
+              <p className="text-sm text-foreground">{entry.author}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Publication</p>
+              <p className="text-sm text-foreground italic" style={{ fontFamily: "'Lora', serif" }}>{entry.source}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Abstract</p>
+            <p className="text-sm text-foreground leading-relaxed">{entry.abstract}</p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground font-mono">{entry.type} · {entry.year}</p>
+          <a
+            href={entry.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-2 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 transition-colors"
+          >
+            Open Literature <ExternalLink size={13} />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Result Card ─────────────────────────────────────────────────────────────
+const ABSTRACT_LIMIT = 160;
 
 function ResultCard({ entry }: { entry: Entry }) {
+  const [expanded, setExpanded] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const isTruncated = entry.abstract.length > ABSTRACT_LIMIT;
+  const displayAbstract = expanded || !isTruncated ? entry.abstract : entry.abstract.slice(0, ABSTRACT_LIMIT).trimEnd() + "…";
   return (
+    <>
     <article className="bg-card border border-border rounded-lg p-6 flex flex-col gap-4 hover:shadow-md hover:border-[#2e4057]/25 transition-all duration-200 group">
       <div className="flex items-start justify-between gap-3">
         <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium tracking-wide font-mono ${CATEGORY_COLORS[entry.category]}`}>
@@ -510,28 +380,429 @@ function ResultCard({ entry }: { entry: Entry }) {
         </h3>
         <p className="text-sm text-muted-foreground">{entry.author}</p>
       </div>
-      <p className="text-sm text-foreground/75 leading-relaxed line-clamp-3">{entry.abstract}</p>
-      <div className="mt-auto pt-4 border-t border-border flex items-center justify-between gap-3">
-        <span className="text-xs text-muted-foreground italic truncate" style={{ fontFamily: "'Lora', serif" }}>
-          {entry.source}
-        </span>
-        <a
-          href={entry.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded hover:bg-primary/85 transition-colors shrink-0"
-        >
-          Open Literature
-          <ExternalLink size={11} />
-        </a>
-      </div>
+     <div className="text-sm text-foreground/75 leading-relaxed">
+          {displayAbstract}
+          {isTruncated && (
+            <button
+              onClick={() => expanded ? setExpanded(false) : setShowModal(true)}
+              className="ml-1 text-primary hover:underline font-medium text-xs whitespace-nowrap"
+            >
+              {expanded ? "Show less" : "Read more"}
+            </button>
+          )}
+        </div>
+
+        <div className="mt-auto pt-4 border-t border-border flex items-center justify-between gap-3">
+          <span className="text-xs text-muted-foreground italic truncate" style={{ fontFamily: "'Lora', serif" }}>{entry.source}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded hover:bg-muted hover:text-foreground transition-colors"
+            >
+              Details
+            </button>
+            <a href={entry.url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded hover:bg-primary/85 transition-colors">
+              Open <ExternalLink size={11} />
+            </a>
+          </div>
+        </div>
     </article>
+          {showModal && <LiteratureModal entry={entry} onClose={() => setShowModal(false)} />}
+          </>
   );
 }
 
+// ─── Entry Form Modal ─────────────────────────────────────────────────────────
+
+const EMPTY_FORM = { title: "", abstract: "", category: "Clinical Psychology" as Category, year: 2023, author: "", source: "", type: "Journal" as EntryType, url: "" };
+
+function EntryFormModal({ initial, onSave, onClose }: { initial?: Entry; onSave: (data: Omit<Entry, "id">) => void; onClose: () => void }) {
+  const [form, setForm] = useState<Omit<Entry, "id">>(initial ? { ...initial } : EMPTY_FORM);
+  const [errors, setErrors] = useState<Partial<Record<keyof Omit<Entry, "id">, string>>>({});
+
+  const set = <K extends keyof typeof form>(key: K, val: typeof form[K]) => setForm((f) => ({ ...f, [key]: val }));
+
+  const validate = () => {
+    const e: typeof errors = {};
+    if (!form.title.trim()) e.title = "Title is required";
+    if (!form.author.trim()) e.author = "Author is required";
+    if (!form.source.trim()) e.source = "Source is required";
+    if (!form.abstract.trim()) e.abstract = "Abstract is required";
+    return e;
+  };
+
+  const handleSubmit = (ev: React.FormEvent) => {
+    ev.preventDefault();
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    onSave(form);
+  };
+
+  const field = (label: string, key: keyof Omit<Entry, "id">, type = "text", multiline = false) => (
+    <div>
+      <label className="block text-xs font-medium text-foreground mb-1">{label}</label>
+      {multiline ? (
+        <textarea value={form[key] as string} onChange={(e) => set(key, e.target.value as never)} rows={3}
+          className={`w-full px-3 py-2 text-sm bg-background border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/25 transition ${errors[key] ? "border-destructive" : "border-border"}`} />
+      ) : (
+        <input type={type} value={form[key] as string | number} onChange={(e) => set(key, (type === "number" ? Number(e.target.value) : e.target.value) as never)}
+          className={`w-full px-3 py-2 text-sm bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25 transition ${errors[key] ? "border-destructive" : "border-border"}`} />
+      )}
+      {errors[key] && <p className="text-xs text-destructive mt-1">{errors[key]}</p>}
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
+      <div className="relative bg-card border border-border rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: "'Lora', serif" }}>
+            {initial ? "Edit Entry" : "Add New Entry"}
+          </h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          {field("Title", "title")}
+          {field("Author(s)", "author")}
+          {field("Source / Journal Name", "source")}
+          {field("Abstract", "abstract", "text", true)}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">Category</label>
+              <select value={form.category} onChange={(e) => set("category", e.target.value as Category)}
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25">
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">Type</label>
+              <select value={form.type} onChange={(e) => set("type", e.target.value as EntryType)}
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25">
+                {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">Year</label>
+              <input type="number" value={form.year} min={1900} max={2099} onChange={(e) => set("year", Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">URL (optional)</label>
+              <input type="text" value={form.url} onChange={(e) => set("url", e.target.value)}
+                placeholder="https://…" className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25" />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-muted transition-colors">
+              Cancel
+            </button>
+            <button type="submit"
+              className="px-5 py-2 text-sm bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/85 transition-colors flex items-center gap-1.5">
+              <Check size={14} /> {initial ? "Save Changes" : "Add Entry"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+
+function DeleteConfirmModal({ entry, onConfirm, onClose }: { entry: Entry; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4">
+        <div className="w-11 h-11 bg-[#fde8e8] rounded-full flex items-center justify-center">
+          <AlertTriangle size={20} className="text-destructive" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-foreground mb-1" style={{ fontFamily: "'Lora', serif" }}>Delete entry?</h3>
+          <p className="text-sm text-muted-foreground">
+            "<span className="font-medium text-foreground">{entry.title.length > 60 ? entry.title.slice(0, 60) + "…" : entry.title}</span>" will be permanently removed.
+          </p>
+        </div>
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">Cancel</button>
+          <button onClick={onConfirm} className="px-4 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/85 transition-colors flex items-center gap-1.5">
+            <Trash2 size={13} /> Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Admin Login ──────────────────────────────────────────────────────────────
+
+function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
+  const [pw, setPw] = useState("");
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const attempt = () => {
+    if (pw === ADMIN_PASSWORD) { onSuccess(); return; }
+    setError(true); setShake(true);
+    setTimeout(() => setShake(false), 500);
+    setTimeout(() => setError(false), 2500);
+  };
+
+  return (
+    <main className="max-w-5xl mx-auto px-5 md:px-8 py-12 flex items-start justify-center min-h-[60vh]">
+      <div className={`w-full max-w-sm mt-10 transition-transform ${shake ? "animate-[shake_0.4s_ease]" : ""}`}>
+        <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mb-6">
+          <Lock size={20} className="text-primary-foreground" />
+        </div>
+        <h1 className="text-2xl font-medium text-foreground mb-1" style={{ fontFamily: "'Lora', serif" }}>Admin access</h1>
+        <p className="text-sm text-muted-foreground mb-8">Enter the admin password to manage the literature database.</p>
+
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-medium text-foreground mb-1.5">Password</label>
+            <div className="relative">
+              <input
+                type={show ? "text" : "password"}
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && attempt()}
+                placeholder="Enter admin password"
+                className={`w-full px-3 py-2.5 pr-10 text-sm bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25 transition ${error ? "border-destructive focus:ring-destructive/20" : "border-border"}`}
+              />
+              <button type="button" onClick={() => setShow(!show)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                {show ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            {error && <p className="text-xs text-destructive mt-1.5 flex items-center gap-1"><AlertTriangle size={11} /> Incorrect password. Please try again.</p>}
+          </div>
+
+          <button onClick={attempt}
+            className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 active:scale-[0.98] transition-all">
+            Sign in
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground text-center mt-8 font-mono">
+          Hint: the password is <span className="italic">psylit2024</span>
+        </p>
+      </div>
+
+      <style>{`@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}`}</style>
+    </main>
+  );
+}
+
+// ─── Admin Dashboard ──────────────────────────────────────────────────────────
+
+function AdminDashboard({
+  entries, onAdd, onUpdate, onDelete, onLogout,
+}: {
+  entries: Entry[];
+  onAdd: (e: Omit<Entry, "id">) => void;
+  onUpdate: (e: Entry) => void;
+  onDelete: (id: number) => void;
+  onLogout: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState<Category | "">("");
+  const [showModal, setShowModal] = useState<"add" | Entry | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return entries.filter((e) =>
+      (!q || e.title.toLowerCase().includes(q) || e.author.toLowerCase().includes(q)) &&
+      (!filterCat || e.category === filterCat)
+    );
+  }, [entries, search, filterCat]);
+
+  const stats = useMemo(() => ({
+    total: entries.length,
+    byType: TYPES.reduce((acc, t) => ({ ...acc, [t]: entries.filter((e) => e.type === t).length }), {} as Record<EntryType, number>),
+    recentYear: Math.max(...entries.map((e) => e.year)),
+  }), [entries]);
+
+  return (
+    <main className="max-w-5xl mx-auto px-5 md:px-8 py-10">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <LayoutDashboard size={16} className="text-accent" />
+            <p className="text-xs font-mono tracking-widest text-accent uppercase">Admin Panel</p>
+          </div>
+          <h1 className="text-2xl font-medium text-foreground" style={{ fontFamily: "'Lora', serif" }}>Literature Database</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowModal("add")}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 transition-colors">
+            <Plus size={15} /> Add Entry
+          </button>
+          <button onClick={onLogout}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-colors">
+            <LogOut size={14} /> Sign out
+          </button>
+        </div>
+      </div>
+
+      {/* Stats strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: "Total Entries", value: stats.total, icon: <BookMarked size={16} /> },
+          { label: "Journals", value: stats.byType["Journal"], icon: <FileText size={16} /> },
+          { label: "Articles", value: stats.byType["Article"], icon: <FileText size={16} /> },
+          { label: "Latest Year", value: stats.recentYear, icon: <FileText size={16} /> },
+        ].map(({ label, value, icon }) => (
+          <div key={label} className="bg-card border border-border rounded-lg px-5 py-4">
+            <div className="text-muted-foreground mb-2">{icon}</div>
+            <p className="text-2xl font-semibold text-foreground font-mono">{value}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters row */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title or author…"
+            className="w-full pl-9 pr-3 py-2 text-sm bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25"
+          />
+        </div>
+        <select value={filterCat} onChange={(e) => setFilterCat(e.target.value as Category | "")}
+          className="px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 cursor-pointer">
+          <option value="">All Categories</option>
+          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <span className="self-center text-xs text-muted-foreground font-mono whitespace-nowrap">{filtered.length} entries</span>
+      </div>
+
+      {/* Table */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Title / Author</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden md:table-cell">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Type</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Year</th>
+                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                    No entries match your search.
+                  </td>
+                </tr>
+              ) : filtered.map((entry) => (
+                <tr key={entry.id} className="hover:bg-muted/30 transition-colors align-top">
+                    <td className="px-5 py-4">
+                      <button onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                        className="text-left group flex items-start gap-2 w-full">
+                        <ChevronDown size={14} className={`mt-0.5 text-muted-foreground shrink-0 transition-transform ${expandedId === entry.id ? "rotate-180" : ""}`} />
+                        <div>
+                          <p className="font-medium text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-1">{entry.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{entry.author}</p>
+                          {expandedId === entry.id && (
+                            <div className="mt-2 pt-2 border-t border-border">
+                              <p className="text-xs text-muted-foreground leading-relaxed">{entry.abstract}</p>
+                              <p className="text-xs text-muted-foreground italic mt-1" style={{ fontFamily: "'Lora', serif" }}>{entry.source}</p>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    </td>
+                    <td className="px-4 py-4 hidden md:table-cell">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono ${CATEGORY_COLORS[entry.category]}`}>
+                        {entry.category.split(" ")[0]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 hidden sm:table-cell">
+                      <span className="text-xs text-muted-foreground font-mono">{entry.type}</span>
+                    </td>
+                    <td className="px-4 py-4 hidden sm:table-cell">
+                      <span className="text-xs text-muted-foreground font-mono">{entry.year}</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setShowModal(entry)} title="Edit"
+                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => setDeleteTarget(entry)} title="Delete"
+                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-[#fde8e8] rounded transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showModal === "add" && (
+        <EntryFormModal
+          onSave={(data) => { onAdd(data); setShowModal(null); showToast("Entry added successfully"); }}
+          onClose={() => setShowModal(null)}
+        />
+      )}
+      {showModal && showModal !== "add" && (
+        <EntryFormModal
+          initial={showModal as Entry}
+          onSave={(data) => { onUpdate({ ...(showModal as Entry), ...data }); setShowModal(null); showToast("Entry updated successfully"); }}
+          onClose={() => setShowModal(null)}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          entry={deleteTarget}
+          onConfirm={() => { onDelete(deleteTarget.id); setDeleteTarget(null); showToast("Entry deleted", "error"); }}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium border ${toast.type === "success" ? "bg-card border-[#5a7a63]/40 text-foreground" : "bg-[#fde8e8] border-destructive/20 text-destructive"}`}>
+          {toast.type === "success" ? <Check size={14} className="text-accent" /> : <Trash2 size={14} />}
+          {toast.msg}
+        </div>
+      )}
+    </main>
+  );
+}
+
+
 // ─── Home Page ────────────────────────────────────────────────────────────────
 
-function HomePage({ onNav }: { onNav: (p: Page, cat?: Category) => void }) {
+function HomePage({ onNav, entries }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[] }) {
   const [query, setQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | "">("");
@@ -555,7 +826,7 @@ function HomePage({ onNav }: { onNav: (p: Page, cat?: Category) => void }) {
   const activeFilterCount = [selectedCategory, selectedYear, selectedType].filter(Boolean).length;
 
   const filtered = useMemo(() => {
-    let results = ALL_ENTRIES.filter((e) => {
+    let results = entries.filter((e) => {
       const q = query.toLowerCase();
       const matchQ = !q || [e.title, e.author, e.category, e.abstract, e.source].some((f) => f.toLowerCase().includes(q));
       return matchQ && (!selectedCategory || e.category === selectedCategory) && (!selectedYear || e.year === selectedYear) && (!selectedType || e.type === selectedType);
@@ -563,7 +834,7 @@ function HomePage({ onNav }: { onNav: (p: Page, cat?: Category) => void }) {
     if (sortBy === "newest") results = [...results].sort((a, b) => b.year - a.year);
     else if (sortBy === "az") results = [...results].sort((a, b) => a.title.localeCompare(b.title));
     return results;
-  }, [query, selectedCategory, selectedYear, selectedType, sortBy]);
+  }, [entries, query, selectedCategory, selectedYear, selectedType, sortBy]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -705,7 +976,7 @@ function HomePage({ onNav }: { onNav: (p: Page, cat?: Category) => void }) {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {paginated.map((entry) => <ResultCard key={entry.id} entry={entry} />)}
+              {paginated.map((entry: Entry) => <ResultCard key={entry.id} entry={entry} />)}
             </div>
             {totalPages > 1 && (
               <div className="mt-10 flex items-center justify-center gap-1">
@@ -750,7 +1021,7 @@ function HomePage({ onNav }: { onNav: (p: Page, cat?: Category) => void }) {
 
 // ─── Categories Page ──────────────────────────────────────────────────────────
 
-function CategoriesPage({ onNav }: { onNav: (p: Page, cat?: Category) => void }) {
+function CategoriesPage({ onNav, entries }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[] }) {
   return (
     <main className="max-w-5xl mx-auto px-5 md:px-8 py-12">
       <div className="mb-10">
@@ -766,7 +1037,7 @@ function CategoriesPage({ onNav }: { onNav: (p: Page, cat?: Category) => void })
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {CATEGORIES.map((cat) => {
           const meta = CATEGORY_META[cat];
-          const count = ALL_ENTRIES.filter((e) => e.category === cat).length;
+          const count = entries.filter((e) => e.category === cat).length;
           return (
             <button
               key={cat}
@@ -804,7 +1075,7 @@ function CategoriesPage({ onNav }: { onNav: (p: Page, cat?: Category) => void })
       {/* Stats strip */}
       <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden border border-border">
         {[
-          { label: "Total Entries", value: ALL_ENTRIES.length },
+          { label: "Total Entries", value: entries.length },
           { label: "Disciplines", value: CATEGORIES.length },
           { label: "Publication Types", value: TYPES.length },
           { label: "Year Range", value: "2020–2023" },
@@ -823,29 +1094,23 @@ function CategoriesPage({ onNav }: { onNav: (p: Page, cat?: Category) => void })
 
 interface Contributor {
   initials: string;
+  name: string;
   role: string;
-  handle: string;
   bio: string;
 }
 
 const CONTRIBUTORS: Contributor[] = [
   {
-    initials: "A.R.",
-    role: "Lead Developer",
-    handle: "github.com/a-r",
-    bio: "Full-stack developer and psychology student passionate about making academic research more accessible to everyone.",
-  },
-  {
-    initials: "M.T.",
-    role: "UX & Design",
-    handle: "github.com/m-t",
-    bio: "Designer focused on clean, readable interfaces for educational tools and student-facing research platforms.",
-  },
-  {
-    initials: "J.L.",
+    initials: "B.P.H.",
+    name: "Bunga Putri Heriniansyah",
     role: "Content Curator",
-    handle: "github.com/j-l",
-    bio: "Graduate researcher in clinical psychology who curated the initial journal database and category taxonomy.",
+    bio: "Curated the journal database and category taxonomy to help psychology students find relevant research faster.",
+  },
+  {
+    initials: "R.A.W.",
+    name: "Ristu Aji Wijayanto",
+    role: "Full-stack Developer & UX Design",
+    bio: "Built the platform and designed the interface for a clean, focused research experience.",
   },
 ];
 
@@ -872,20 +1137,20 @@ function AboutPage() {
           Contributors
         </h2>
         <p className="text-sm text-muted-foreground mb-7">
-          We keep personal details minimal to respect contributor privacy. Reach out via GitHub if you would like to collaborate.
+          The people behind Mindex. Reach out via GitHub if you would like to collaborate.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {CONTRIBUTORS.map((c) => (
             <div
-              key={c.initials}
+              key={c.name}
               className="bg-card border border-border rounded-lg p-6 flex flex-col gap-3"
             >
               <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-base font-semibold text-foreground font-mono">
                 {c.initials}
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">{c.role}</p>
-                <p className="text-xs text-muted-foreground font-mono">{c.handle}</p>
+                <p className="text-sm font-medium text-foreground">{c.name}</p>
+                <p className="text-xs text-muted-foreground">{c.role}</p>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">{c.bio}</p>
             </div>
@@ -964,11 +1229,21 @@ function AboutPage() {
   );
 }
 
+// ─── Admin Page (gate + dashboard) ───────────────────────────────────────────
+
+function AdminPage({ entries, onAdd, onUpdate, onDelete }: { entries: Entry[]; onAdd: (e: Omit<Entry, "id">) => void; onUpdate: (e: Entry) => void; onDelete: (id: number) => void }) {
+  const [authed, setAuthed] = useState(false);
+  return authed
+    ? <AdminDashboard entries={entries} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} onLogout={() => setAuthed(false)} />
+    : <AdminLogin onSuccess={() => setAuthed(true)} />;
+}
+
 // ─── Root App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>("home");
   const [preselectedCategory, setPreselectedCategory] = useState<Category | undefined>();
+  const { entries, addEntry, updateEntry, deleteEntry } = useEntries();
 
   const handleNav = (p: Page, cat?: Category) => {
     setActivePage(p);
@@ -981,9 +1256,9 @@ export default function App() {
       <Header activePage={activePage} onNav={handleNav} />
 
       {activePage === "home" && (
-        <HomePage key={preselectedCategory} onNav={handleNav} />
+        <HomePage key={preselectedCategory} onNav={handleNav} entries={entries} />
       )}
-      {activePage === "categories" && <CategoriesPage onNav={handleNav} />}
+      {activePage === "categories" && <CategoriesPage onNav={handleNav} entries={entries} />}
       {activePage === "about" && <AboutPage />}
 
       <Footer />
