@@ -30,7 +30,11 @@ import {
   Users,
   X
 } from "lucide-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useEntries } from "../hooks/useEntries";
+import { loginAdmin } from "../lib/api";
+import { clearAdminToken, setAdminToken } from "../lib/auth";
+import type { Category, Entry, EntryInput, EntryType } from "../lib/types";
 
 function PsiIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
   return (
@@ -44,29 +48,7 @@ function PsiIcon({ size = 20, className = "" }: { size?: number; className?: str
 
 // ─── Types & Data ─────────────────────────────────────────────────────────────
 
-type EntryType = "Journal" | "Article" | "Thesis" | "Literature Review";
-type Category =
-  | "Clinical Psychology"
-  | "Developmental Psychology"
-  | "Cognitive Psychology"
-  | "Social Psychology"
-  | "Educational Psychology"
-  | "Mental Health"
-  | "Research Methods";
-
 type Page = "home" | "categories" | "about";
-
-interface Entry {
-  id: number;
-  title: string;
-  abstract: string;
-  category: Category;
-  year: number;
-  author: string;
-  source: string;
-  type: EntryType;
-  url: string;
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -77,7 +59,6 @@ const CATEGORIES: Category[] = [
 const TYPES: EntryType[] = ["Journal", "Article", "Thesis", "Literature Review"];
 const YEARS = [2020, 2021, 2022, 2023];
 const PER_PAGE = 6;
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? "psylit2024";
 
 const CATEGORY_COLORS: Record<Category, string> = {
   "Clinical Psychology": "bg-[#dce8f0] text-[#2e4057]",
@@ -98,50 +79,6 @@ const CATEGORY_META: Record<Category, { color: string; bg: string; icon: React.R
   "Research Methods": { color: "text-[#3a5c2a]", bg: "bg-[#e8f0dc]", icon: <FlaskConical size={20} />, description: "Quantitative, qualitative, and mixed-methods approaches to designing and conducting psychological research.", journals: ["Psychological Methods", "Psychological Science Methods", "Behavior Research Methods"] },
   "Social Psychology": { color: "text-[#2a5c58]", bg: "bg-[#dcf0ee]", icon: <Users size={20} />, description: "How individuals think, feel, and behave in social contexts — including identity, influence, prejudice, and group dynamics.", journals: ["Journal of Personality and Social Psychology", "Social Psychological and Personality Science", "Group Processes & Intergroup Relations"] },
 };
-
-const SEED_ENTRIES: Entry[] = [
-  { id: 1, title: "Attachment Theory and Its Implications for Psychotherapy", abstract: "This paper examines Bowlby's attachment theory and its contemporary applications in therapeutic contexts, exploring how early relational patterns shape adult psychological functioning and treatment outcomes.", category: "Clinical Psychology", year: 2023, author: "Sarah Chen, Marcus Webb", source: "Journal of Clinical Psychology", type: "Journal", url: "#" },
-  { id: 2, title: "Cognitive Biases in Decision-Making Under Uncertainty", abstract: "A systematic review of heuristics and cognitive biases affecting judgment under uncertainty, with implications for behavioral economics and clinical decision-making frameworks.", category: "Cognitive Psychology", year: 2022, author: "Daniel Kahneman Jr., Elena Sorokina", source: "Psychological Review", type: "Literature Review", url: "#" },
-  { id: 3, title: "Social Identity and Intergroup Conflict: A Meta-Analysis", abstract: "Meta-analytic synthesis of 147 studies examining the relationship between social identity salience and intergroup hostility, covering data from 1980–2022.", category: "Social Psychology", year: 2023, author: "Priya Nair, James Okonkwo", source: "Journal of Personality and Social Psychology", type: "Journal", url: "#" },
-  { id: 4, title: "Childhood Adversity and Neuroplasticity in Adolescence", abstract: "Longitudinal study tracking structural brain changes in adolescents with documented early adversity, using MRI data from 312 participants over six years.", category: "Developmental Psychology", year: 2021, author: "Amara Diallo, Kenji Murakami", source: "Developmental Psychopathology", type: "Article", url: "#" },
-  { id: 5, title: "Mindfulness-Based Cognitive Therapy for Recurrent Depression", abstract: "Randomized controlled trial evaluating MBCT efficacy in reducing relapse rates among adults with three or more prior major depressive episodes over a 24-month follow-up.", category: "Mental Health", year: 2022, author: "Lucia Ferretti, Aaron Moss", source: "JAMA Psychiatry", type: "Article", url: "#" },
-  { id: 6, title: "Self-Determination Theory in Educational Settings", abstract: "An investigation of intrinsic vs. extrinsic motivation frameworks in K-12 and higher education contexts, with recommendations for pedagogical practice.", category: "Educational Psychology", year: 2020, author: "Richard Ryan Jr., Isabel Monteiro", source: "Educational Psychologist", type: "Journal", url: "#" },
-  { id: 7, title: "Mixed-Methods Research Design in Clinical Psychology", abstract: "Guidelines for integrating qualitative and quantitative methodologies in psychological research, with worked examples from anxiety disorder treatment studies.", category: "Research Methods", year: 2023, author: "Oliver Strauss, Naomi Adeyemi", source: "Psychological Methods", type: "Literature Review", url: "#" },
-  { id: 8, title: "Emotion Regulation Strategies and Borderline Personality Disorder", abstract: "Comparative analysis of DBT, schema therapy, and transference-focused psychotherapy outcomes across three clinical cohorts, with a focus on emotional dysregulation.", category: "Clinical Psychology", year: 2021, author: "Mariana Costa, Elias Bergmann", source: "Behaviour Research and Therapy", type: "Journal", url: "#" },
-  { id: 9, title: "Language Acquisition and Theory of Mind in Early Childhood", abstract: "Cross-cultural study examining the relationship between vocabulary development and false-belief understanding in children aged 3–6 across five countries.", category: "Developmental Psychology", year: 2022, author: "Hana Petrov, Carlos Mendez", source: "Child Development", type: "Article", url: "#" },
-  { id: 10, title: "The Psychology of Misinformation and Belief Updating", abstract: "Experimental investigation of how corrections and retractions influence persistent belief in misinformation, with analysis across political and health domains.", category: "Cognitive Psychology", year: 2023, author: "Tara Singh, Liam O'Brien", source: "Cognition", type: "Article", url: "#" },
-  { id: 11, title: "Social Media Use and Adolescent Mental Health: A Systematic Review", abstract: "Systematic review of 89 longitudinal studies examining associations between social media engagement patterns and anxiety, depression, and self-esteem in adolescents.", category: "Mental Health", year: 2023, author: "Fatima Al-Hassan, Tom Bergqvist", source: "Clinical Psychology Review", type: "Literature Review", url: "#" },
-  { id: 12, title: "Stereotype Threat and Academic Performance in Higher Education", abstract: "Field experiment and survey study examining how identity-relevant stereotypes suppress test performance and reduce persistence among first-generation university students.", category: "Educational Psychology", year: 2021, author: "Denise Warner, Kwame Boateng", source: "Journal of Educational Psychology", type: "Article", url: "#" },
-  { id: 13, title: "Structural Equation Modeling in Psychological Research: A Primer", abstract: "Introduction to SEM techniques for graduate students, covering path analysis, confirmatory factor analysis, and mediation/moderation testing with annotated R examples.", category: "Research Methods", year: 2020, author: "Yuki Tanaka", source: "Psychological Science Methods", type: "Thesis", url: "#" },
-  { id: 14, title: "Conformity and Obedience Revisited: Post-Replication Studies", abstract: "Replications and extensions of Milgram and Asch paradigms in contemporary samples, assessing generalizability and identifying moderating social contextual factors.", category: "Social Psychology", year: 2022, author: "Nadia Volkov, Samuel Henriksen", source: "Social Psychological and Personality Science", type: "Journal", url: "#" },
-  { id: 15, title: "Trauma-Informed Care: Principles and Implementation", abstract: "Practice-focused review of trauma-informed frameworks in community mental health settings, including staff training models and outcome measurement strategies.", category: "Clinical Psychology", year: 2020, author: "Rosa Figueroa, Ben Okeke", source: "Psychological Trauma: Theory, Research, Practice, and Policy", type: "Literature Review", url: "#" },
-  { id: 16, title: "Working Memory Capacity and Reading Comprehension", abstract: "Investigation of the role of phonological and visuospatial working memory components in text comprehension across reading skill levels in adult readers.", category: "Cognitive Psychology", year: 2021, author: "Claire Beaumont, Ravi Patel", source: "Journal of Experimental Psychology: General", type: "Article", url: "#" },
-  { id: 17, title: "Peer Victimization and Internalizing Disorders in Middle School", abstract: "Two-year cohort study tracking the longitudinal effects of bullying and social exclusion on anxiety and depressive symptoms in 1,240 students aged 11–14.", category: "Developmental Psychology", year: 2023, author: "Ingrid Svensson, Marcus Osei", source: "Journal of Child Psychology and Psychiatry", type: "Journal", url: "#" },
-  { id: 18, title: "Burnout Among Frontline Mental Health Workers Post-Pandemic", abstract: "Cross-sectional survey of 640 mental health clinicians examining prevalence, predictors, and protective factors of professional burnout following the COVID-19 pandemic.", category: "Mental Health", year: 2023, author: "Ayasha Morales, David Lindstrom", source: "Professional Psychology: Research and Practice", type: "Article", url: "#" },
-];
-
-// ─── Global entries state (lifted so Admin and Home share data) ───────────────
-
-function useEntries() {
-  const [entries, setEntries] = useState<Entry[]>(SEED_ENTRIES);
-  const nextId = useRef(entries.length + 1);
-
-  const addEntry = (e: Omit<Entry, "id">) => {
-    const newEntry = { ...e, id: nextId.current++ };
-    setEntries((prev) => [newEntry, ...prev]);
-    return newEntry;
-  };
-
-  const updateEntry = (updated: Entry) => {
-    setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-  };
-
-  const deleteEntry = (id: number) => {
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-  };
-
-  return { entries, addEntry, updateEntry, deleteEntry };
-}
 
 // ─── Shared Header ────────────────────────────────────────────────────────────
 
@@ -551,12 +488,22 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
   const [show, setShow] = useState(false);
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const attempt = () => {
-    if (pw === ADMIN_PASSWORD) { onSuccess(); return; }
-    setError(true); setShake(true);
-    setTimeout(() => setShake(false), 500);
-    setTimeout(() => setError(false), 2500);
+  const attempt = async () => {
+    setSubmitting(true);
+    try {
+      const token = await loginAdmin(pw);
+      setAdminToken(token);
+      onSuccess();
+    } catch {
+      setError(true);
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      setTimeout(() => setError(false), 2500);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -588,15 +535,11 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
             {error && <p className="text-xs text-destructive mt-1.5 flex items-center gap-1"><AlertTriangle size={11} /> Incorrect password. Please try again.</p>}
           </div>
 
-          <button onClick={attempt}
-            className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 active:scale-[0.98] transition-all">
-            Sign in
+          <button onClick={() => void attempt()} disabled={submitting}
+            className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 active:scale-[0.98] transition-all disabled:opacity-60">
+            {submitting ? "Signing in…" : "Sign in"}
           </button>
         </div>
-
-        <p className="text-xs text-muted-foreground text-center mt-8 font-mono">
-          Hint: the password is <span className="italic">psylit2024</span>
-        </p>
       </div>
 
       <style>{`@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}`}</style>
@@ -607,13 +550,14 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
 // ─── Admin Dashboard ──────────────────────────────────────────────────────────
 
 function AdminDashboard({
-  entries, onAdd, onUpdate, onDelete, onLogout,
+  entries, onAdd, onUpdate, onDelete, onLogout, usingLocalFallback,
 }: {
   entries: Entry[];
-  onAdd: (e: Omit<Entry, "id">) => void;
-  onUpdate: (e: Entry) => void;
-  onDelete: (id: number) => void;
+  onAdd: (e: EntryInput) => Promise<void>;
+  onUpdate: (e: Entry) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
   onLogout: () => void;
+  usingLocalFallback: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "">("");
@@ -638,8 +582,33 @@ function AdminDashboard({
   const stats = useMemo(() => ({
     total: entries.length,
     byType: TYPES.reduce((acc, t) => ({ ...acc, [t]: entries.filter((e) => e.type === t).length }), {} as Record<EntryType, number>),
-    recentYear: Math.max(...entries.map((e) => e.year)),
+    recentYear: entries.length ? Math.max(...entries.map((e) => e.year)) : "—",
   }), [entries]);
+
+  const handleSave = async (data: EntryInput, existing?: Entry) => {
+    try {
+      if (existing) {
+        await onUpdate({ ...existing, ...data });
+        showToast("Entry updated successfully");
+      } else {
+        await onAdd(data);
+        showToast("Entry added successfully");
+      }
+      setShowModal(null);
+    } catch {
+      showToast(usingLocalFallback ? "Database unavailable — start vercel dev" : "Failed to save entry", "error");
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await onDelete(id);
+      setDeleteTarget(null);
+      showToast("Entry deleted", "error");
+    } catch {
+      showToast(usingLocalFallback ? "Database unavailable — start vercel dev" : "Failed to delete entry", "error");
+    }
+  };
 
   return (
     <main className="max-w-5xl mx-auto px-5 md:px-8 py-10">
@@ -657,12 +626,18 @@ function AdminDashboard({
             className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 transition-colors">
             <Plus size={15} /> Add Entry
           </button>
-          <button onClick={onLogout}
+          <button onClick={() => { clearAdminToken(); onLogout(); }}
             className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-colors">
             <LogOut size={14} /> Sign out
           </button>
         </div>
       </div>
+
+      {usingLocalFallback && (
+        <p className="mb-6 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+          Database API is offline. Run <code className="font-mono">vercel dev</code> locally or deploy with Vercel Postgres connected.
+        </p>
+      )}
 
       {/* Stats strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
@@ -769,21 +744,21 @@ function AdminDashboard({
       {/* Modals */}
       {showModal === "add" && (
         <EntryFormModal
-          onSave={(data) => { onAdd(data); setShowModal(null); showToast("Entry added successfully"); }}
+          onSave={(data) => void handleSave(data)}
           onClose={() => setShowModal(null)}
         />
       )}
       {showModal && showModal !== "add" && (
         <EntryFormModal
           initial={showModal as Entry}
-          onSave={(data) => { onUpdate({ ...(showModal as Entry), ...data }); setShowModal(null); showToast("Entry updated successfully"); }}
+          onSave={(data) => void handleSave(data, showModal as Entry)}
           onClose={() => setShowModal(null)}
         />
       )}
       {deleteTarget && (
         <DeleteConfirmModal
           entry={deleteTarget}
-          onConfirm={() => { onDelete(deleteTarget.id); setDeleteTarget(null); showToast("Entry deleted", "error"); }}
+          onConfirm={() => void handleDelete(deleteTarget.id)}
           onClose={() => setDeleteTarget(null)}
         />
       )}
@@ -802,7 +777,7 @@ function AdminDashboard({
 
 // ─── Home Page ────────────────────────────────────────────────────────────────
 
-function HomePage({ onNav, entries }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[] }) {
+function HomePage({ onNav, entries, entriesLoading }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[]; entriesLoading: boolean }) {
   const [query, setQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | "">("");
@@ -953,7 +928,7 @@ function HomePage({ onNav, entries }: { onNav: (p: Page, cat?: Category) => void
         </div>
 
         {/* Results */}
-        {loading ? (
+        {loading || entriesLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
@@ -1021,7 +996,7 @@ function HomePage({ onNav, entries }: { onNav: (p: Page, cat?: Category) => void
 
 // ─── Categories Page ──────────────────────────────────────────────────────────
 
-function CategoriesPage({ onNav, entries }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[] }) {
+function CategoriesPage({ onNav, entries, entriesLoading }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[]; entriesLoading: boolean }) {
   return (
     <main className="max-w-5xl mx-auto px-5 md:px-8 py-12">
       <div className="mb-10">
@@ -1037,7 +1012,7 @@ function CategoriesPage({ onNav, entries }: { onNav: (p: Page, cat?: Category) =
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {CATEGORIES.map((cat) => {
           const meta = CATEGORY_META[cat];
-          const count = entries.filter((e) => e.category === cat).length;
+          const count = entriesLoading ? "…" : entries.filter((e) => e.category === cat).length;
           return (
             <button
               key={cat}
@@ -1075,7 +1050,7 @@ function CategoriesPage({ onNav, entries }: { onNav: (p: Page, cat?: Category) =
       {/* Stats strip */}
       <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden border border-border">
         {[
-          { label: "Total Entries", value: entries.length },
+          { label: "Total Entries", value: entriesLoading ? "…" : entries.length },
           { label: "Disciplines", value: CATEGORIES.length },
           { label: "Publication Types", value: TYPES.length },
           { label: "Year Range", value: "2020–2023" },
@@ -1231,11 +1206,44 @@ function AboutPage() {
 
 // ─── Admin Page (gate + dashboard) ───────────────────────────────────────────
 
-function AdminPage({ entries, onAdd, onUpdate, onDelete }: { entries: Entry[]; onAdd: (e: Omit<Entry, "id">) => void; onUpdate: (e: Entry) => void; onDelete: (id: number) => void }) {
+export function AdminPage({
+  entries,
+  loading,
+  usingLocalFallback,
+  onAdd,
+  onUpdate,
+  onDelete,
+}: {
+  entries: Entry[];
+  loading: boolean;
+  usingLocalFallback: boolean;
+  onAdd: (e: EntryInput) => Promise<void>;
+  onUpdate: (e: Entry) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+  onRefresh: () => Promise<void>;
+}) {
   const [authed, setAuthed] = useState(false);
-  return authed
-    ? <AdminDashboard entries={entries} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} onLogout={() => setAuthed(false)} />
-    : <AdminLogin onSuccess={() => setAuthed(true)} />;
+
+  if (loading) {
+    return (
+      <main className="max-w-5xl mx-auto px-5 md:px-8 py-12">
+        <p className="text-sm text-muted-foreground">Loading database…</p>
+      </main>
+    );
+  }
+
+  return authed ? (
+    <AdminDashboard
+      entries={entries}
+      onAdd={onAdd}
+      onUpdate={onUpdate}
+      onDelete={onDelete}
+      usingLocalFallback={usingLocalFallback}
+      onLogout={() => setAuthed(false)}
+    />
+  ) : (
+    <AdminLogin onSuccess={() => setAuthed(true)} />
+  );
 }
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
@@ -1243,7 +1251,7 @@ function AdminPage({ entries, onAdd, onUpdate, onDelete }: { entries: Entry[]; o
 export default function App() {
   const [activePage, setActivePage] = useState<Page>("home");
   const [preselectedCategory, setPreselectedCategory] = useState<Category | undefined>();
-  const { entries, addEntry, updateEntry, deleteEntry } = useEntries();
+  const { entries, loading } = useEntries();
 
   const handleNav = (p: Page, cat?: Category) => {
     setActivePage(p);
@@ -1256,9 +1264,9 @@ export default function App() {
       <Header activePage={activePage} onNav={handleNav} />
 
       {activePage === "home" && (
-        <HomePage key={preselectedCategory} onNav={handleNav} entries={entries} />
+        <HomePage key={preselectedCategory} onNav={handleNav} entries={entries} entriesLoading={loading} />
       )}
-      {activePage === "categories" && <CategoriesPage onNav={handleNav} entries={entries} />}
+      {activePage === "categories" && <CategoriesPage onNav={handleNav} entries={entries} entriesLoading={loading} />}
       {activePage === "about" && <AboutPage />}
 
       <Footer />
