@@ -37,7 +37,7 @@ export async function fetchEntries(): Promise<Entry[]> {
 }
 
 export async function loginAdmin(password: string): Promise<string> {
-  const { token } = await request<{ token: string }>('/api/auth/login', {
+  const { token } = await request<{ token: string }>('/api/login', {
     method: 'POST',
     body: JSON.stringify({ password }),
   });

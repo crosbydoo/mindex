@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createAdminToken, verifyPassword } from '../lib/auth';
-import { parseJsonBody } from '../lib/body';
+import { createAdminToken, verifyPassword } from './lib/auth';
+import { parseJsonBody } from './lib/body';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

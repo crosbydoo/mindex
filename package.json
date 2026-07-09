@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
-    "dev:full": "vercel dev"
+    "dev": "vite --port 3005",
+    "dev:full": "vercel dev --listen 3005"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
