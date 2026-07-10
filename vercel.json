@@ -9,9 +9,24 @@
       "maxDuration": 10
     }
   },
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" }
+      ]
+    }
+  ],
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|sw\\.js|workbox-.*\\.js|manifest\\.webmanifest|.*\\.(?:js|css|png|svg|ico|woff2?|webmanifest)$).*)",
       "destination": "/index.html"
     }
   ]
