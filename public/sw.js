@@ -1,7 +1,6 @@
-/* Mindex PWA service worker — cache app shell, network-first for API */
-const CACHE_VERSION = 'mindex-v2';
+/* Mindex PWA service worker — cache app shell only (never cache API data) */
+const CACHE_VERSION = 'mindex-v3';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
-const API_CACHE = `${CACHE_VERSION}-api`;
 
 const PRECACHE_URLS = [
   '/',
@@ -25,7 +24,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key.startsWith('mindex-') && key !== SHELL_CACHE && key !== API_CACHE)
+          .filter((key) => key.startsWith('mindex-') && key !== SHELL_CACHE)
           .map((key) => caches.delete(key)),
       ),
     ).then(() => self.clients.claim()),
@@ -37,12 +36,18 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
 
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request, API_CACHE));
+  // Always hit the network for API / health — never serve stale entry lists
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname === '/health' ||
+    url.hostname.includes('mindex-api')
+  ) {
+    event.respondWith(fetch(request));
     return;
   }
+
+  if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -72,18 +77,3 @@ self.addEventListener('fetch', (event) => {
     }),
   );
 });
-
-async function networkFirst(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    throw new Error('Network unavailable');
-  }
-}

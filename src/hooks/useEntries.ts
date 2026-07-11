@@ -55,26 +55,48 @@ export function useEntries() {
     void refresh();
   }, [refresh]);
 
+  // Keep lists in sync across tabs after admin mutations
+  useEffect(() => {
+    const onFocus = () => {
+      void refresh();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'mindex_entries_revision') {
+        void refresh();
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [refresh]);
+
+  const bumpRevision = () => {
+    localStorage.setItem('mindex_entries_revision', String(Date.now()));
+  };
+
   const addEntry = useCallback(async (input: EntryInput) => {
     const entry = await apiCreateEntry(input);
-    setEntries((prev) => [entry, ...prev]);
-    setUsingLocalFallback(false);
+    await refresh();
+    bumpRevision();
     return entry;
-  }, []);
+  }, [refresh]);
 
   const updateEntry = useCallback(async (updated: Entry) => {
     const { id, ...input } = updated;
     const entry = await apiUpdateEntry(id, input);
-    setEntries((prev) => prev.map((item) => (item.id === id ? entry : item)));
-    setUsingLocalFallback(false);
+    await refresh();
+    bumpRevision();
     return entry;
-  }, []);
+  }, [refresh]);
 
   const removeEntry = useCallback(async (id: number) => {
     await apiDeleteEntry(id);
-    setEntries((prev) => prev.filter((item) => item.id !== id));
-    setUsingLocalFallback(false);
-  }, []);
+    await refresh();
+    bumpRevision();
+  }, [refresh]);
 
   return {
     entries,

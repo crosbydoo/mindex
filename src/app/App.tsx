@@ -821,6 +821,12 @@ function AdminDashboard({
         </button>
       </div>
 
+      {view === "archive" && (
+        <p className="mb-4 text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-4 py-3">
+          Archive is stored on this browser only (not shared with other devices/users yet). The public site always shows live API data.
+        </p>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="relative flex-1">
           <Search
@@ -1657,18 +1663,6 @@ export default function App() {
   const [activePage, setActivePage] = useState<Page>("home");
   const [preselectedCategory, setPreselectedCategory] = useState<Category | undefined>();
   const { entries, loading } = useEntries();
-  const [archivedIds, setArchivedIds] = useState<number[]>(() => getArchivedIds());
-
-  useEffect(() => {
-    const sync = () => setArchivedIds(getArchivedIds());
-    window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
-  }, []);
-
-  const publicEntries = useMemo(
-    () => entries.filter((e) => !archivedIds.includes(e.id)),
-    [entries, archivedIds],
-  );
 
   const handleNav = (p: Page, cat?: Category) => {
     setActivePage(p);
@@ -1684,12 +1678,12 @@ export default function App() {
         <HomePage
           key={preselectedCategory}
           onNav={handleNav}
-          entries={publicEntries}
+          entries={entries}
           entriesLoading={loading}
         />
       )}
       {activePage === "categories" && (
-        <CategoriesPage onNav={handleNav} entries={publicEntries} entriesLoading={loading} />
+        <CategoriesPage onNav={handleNav} entries={entries} entriesLoading={loading} />
       )}
       {activePage === "about" && <AboutPage />}
 
