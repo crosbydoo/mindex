@@ -21,9 +21,9 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import {
   CATEGORIES,
-  CATEGORY_COLORS,
-  CATEGORY_META,
   TYPES,
+  categoryColor,
+  categoryMeta,
 } from '@/app/catalog';
 import { loginAdmin, logoutAdmin } from '@/lib/api';
 import {
@@ -31,11 +31,7 @@ import {
   isAdminAuthenticated,
   setAdminToken,
 } from '@/lib/auth';
-import {
-  getCustomCategories,
-  saveCustomCategories,
-} from '@/lib/customCategories';
-import type { Category, Entry, EntryInput, EntryType } from '@/lib/types';
+import type { CategoryItem, Entry, EntryInput, EntryType } from '@/lib/types';
 
 type AdminSection = 'overview' | 'journals' | 'archive' | 'categories';
 
@@ -163,7 +159,7 @@ function EntryFormModal({
               <label className="block text-xs font-medium text-foreground mb-1">Category</label>
               <select
                 value={form.category}
-                onChange={(e) => set('category', e.target.value as Category)}
+                onChange={(e) => set('category', e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25"
               >
                 {allCategories.map((c) => (
@@ -358,17 +354,17 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
 function AdminOverview({
   entries,
   archived,
-  customCategories,
+  categoryNames,
 }: {
   entries: Entry[];
   archived: Entry[];
-  customCategories: string[];
+  categoryNames: string[];
 }) {
   const byType = TYPES.reduce(
     (acc, t) => ({ ...acc, [t]: entries.filter((e) => e.type === t).length }),
     {} as Record<EntryType, number>,
   );
-  const byCat = [...CATEGORIES, ...customCategories]
+  const byCat = categoryNames
     .map((c) => ({ cat: c, count: entries.filter((e) => e.category === c).length }))
     .filter((x) => x.count > 0)
     .sort((a, b) => b.count - a.count);
@@ -385,7 +381,7 @@ function AdminOverview({
             { label: 'Archived', value: archived.length, icon: <Archive size={16} />, color: 'text-muted-foreground' },
             {
               label: 'Categories',
-              value: CATEGORIES.length + customCategories.length,
+              value: categoryNames.length,
               icon: <Layers size={16} />,
               color: 'text-accent',
             },
@@ -696,7 +692,7 @@ function AdminJournals({
                     </td>
                     <td className="px-4 py-4 hidden md:table-cell">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono ${CATEGORY_COLORS[entry.category] ?? 'bg-muted text-muted-foreground'}`}
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono ${categoryColor(entry.category)}`}
                       >
                         {entry.category.split(' ')[0]}
                       </span>
@@ -967,7 +963,7 @@ function AdminArchive({
                     </td>
                     <td className="px-4 py-4 hidden md:table-cell">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono ${CATEGORY_COLORS[entry.category] ?? 'bg-muted text-muted-foreground'}`}
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono ${categoryColor(entry.category)}`}
                       >
                         {entry.category.split(' ')[0]}
                       </span>
@@ -1024,37 +1020,104 @@ function AdminArchive({
 }
 
 function AdminCategories({
-  allCategories,
-  customCategories,
-  entries,
-  onAddCategory,
-  onDeleteCategory,
+  categories,
+  onAdd,
+  onRename,
+  onDelete,
   showToast,
 }: {
-  allCategories: string[];
-  customCategories: string[];
-  entries: Entry[];
-  onAddCategory: (name: string) => void;
-  onDeleteCategory: (name: string) => void;
+  categories: CategoryItem[];
+  onAdd: (name: string) => Promise<CategoryItem | void>;
+  onRename: (id: number, name: string) => Promise<CategoryItem | void>;
+  onDelete: (id: number) => Promise<void>;
   showToast: (msg: string, type?: 'success' | 'error') => void;
 }) {
   const [newCat, setNewCat] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<CategoryItem | null>(null);
+  const [editing, setEditing] = useState<CategoryItem | null>(null);
+  const [editName, setEditName] = useState('');
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = newCat.trim();
     if (!trimmed) {
       setError('Category name cannot be empty.');
       return;
     }
-    if (allCategories.map((c) => c.toLowerCase()).includes(trimmed.toLowerCase())) {
+    if (trimmed.length > 100) {
+      setError('Category name must be at most 100 characters.');
+      return;
+    }
+    if (categories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
       setError('This category already exists.');
       return;
     }
-    onAddCategory(trimmed);
-    setNewCat('');
-    setError('');
-    showToast(`Category "${trimmed}" added`);
+    setBusy(true);
+    try {
+      await onAdd(trimmed);
+      setNewCat('');
+      setError('');
+      showToast(`Category "${trimmed}" created`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to create category', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!editing) return;
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      showToast('Category name cannot be empty.', 'error');
+      return;
+    }
+    if (trimmed.length > 100) {
+      showToast('Category name must be at most 100 characters.', 'error');
+      return;
+    }
+    if (
+      categories.some(
+        (c) => c.id !== editing.id && c.name.toLowerCase() === trimmed.toLowerCase(),
+      )
+    ) {
+      showToast('This category name already exists.', 'error');
+      return;
+    }
+    setBusy(true);
+    try {
+      await onRename(editing.id, trimmed);
+      showToast(`Category renamed to "${trimmed}"`);
+      setEditing(null);
+      setEditName('');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to rename category', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.entry_count > 0) {
+      showToast(
+        `Cannot delete "${deleteTarget.name}" — still used by ${deleteTarget.entry_count} entr${deleteTarget.entry_count === 1 ? 'y' : 'ies'}.`,
+        'error',
+      );
+      setDeleteTarget(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      await onDelete(deleteTarget.id);
+      showToast(`Category "${deleteTarget.name}" deleted`);
+      setDeleteTarget(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to delete category', 'error');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -1064,12 +1127,12 @@ function AdminCategories({
           Manage Categories
         </h2>
         <p className="text-sm text-muted-foreground">
-          Add custom categories or remove unused ones. Built-in categories cannot be deleted.
+          Categories are stored on the server. Rename updates matching entries; delete is blocked while entries still use a category.
         </p>
       </div>
 
       <div className="bg-card border border-border rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-3">Add New Category</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Add Category</h3>
         <div className="flex gap-3">
           <div className="flex-1">
             <input
@@ -1079,84 +1142,77 @@ function AdminCategories({
                 setNewCat(e.target.value);
                 setError('');
               }}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              onKeyDown={(e) => e.key === 'Enter' && void handleAdd()}
               placeholder="e.g. Neuropsychology"
+              maxLength={100}
+              disabled={busy}
               className={`w-full px-3 py-2 text-sm bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25 transition ${error ? 'border-destructive' : 'border-border'}`}
             />
             {error && <p className="text-xs text-destructive mt-1">{error}</p>}
           </div>
           <button
-            onClick={handleAdd}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 transition-colors shrink-0"
+            type="button"
+            disabled={busy}
+            onClick={() => void handleAdd()}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 transition-colors shrink-0 disabled:opacity-50"
           >
-            <Plus size={14} /> Add
+            <Plus size={14} /> {busy ? 'Saving…' : 'Add'}
           </button>
         </div>
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b border-border bg-muted/40 flex items-center justify-between">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Built-in Categories</h3>
-          <span className="text-xs font-mono text-muted-foreground">{CATEGORIES.length}</span>
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">All Categories</h3>
+          <span className="text-xs font-mono text-muted-foreground">{categories.length}</span>
         </div>
-        <div className="divide-y divide-border">
-          {CATEGORIES.map((cat) => {
-            const count = entries.filter((e) => e.category === cat).length;
-            const meta = CATEGORY_META[cat];
-            return (
-              <div key={cat} className="flex items-center justify-between px-5 py-3.5 gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded flex items-center justify-center ${meta.bg} ${meta.color} shrink-0`}>
-                    <span className="scale-75">{meta.icon}</span>
-                  </div>
-                  <p className="text-sm font-medium text-foreground">{cat}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                    {count} entries
-                  </span>
-                  <span className="text-xs text-muted-foreground italic">Built-in</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-border bg-muted/40 flex items-center justify-between">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custom Categories</h3>
-          <span className="text-xs font-mono text-muted-foreground">{customCategories.length}</span>
-        </div>
-        {customCategories.length === 0 ? (
+        {categories.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            No custom categories yet. Add one above.
+            No categories yet. Add one above.
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {customCategories.map((cat) => {
-              const count = entries.filter((e) => e.category === cat).length;
+            {categories.map((cat) => {
+              const meta = categoryMeta(cat.name);
               return (
-                <div key={cat} className="flex items-center justify-between px-5 py-3.5 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded bg-muted flex items-center justify-center shrink-0">
-                      <Layers size={13} className="text-muted-foreground" />
+                <div key={cat.id} className="flex items-center justify-between px-5 py-3.5 gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-7 h-7 rounded flex items-center justify-center ${meta.bg} ${meta.color} shrink-0`}>
+                      <span className="scale-75">{meta.icon}</span>
                     </div>
-                    <p className="text-sm font-medium text-foreground">{cat}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{cat.name}</p>
+                      <p className="text-[10px] font-mono text-muted-foreground">id {cat.id}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                      {count} entries
+                      {cat.entry_count} entries
                     </span>
                     <button
+                      type="button"
+                      disabled={busy}
                       onClick={() => {
-                        onDeleteCategory(cat);
-                        showToast(`Category "${cat}" removed`, 'error');
+                        setEditing(cat);
+                        setEditName(cat.name);
                       }}
-                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-[#fde8e8] rounded transition-colors"
-                      title="Delete category"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-muted transition-colors disabled:opacity-50"
+                      title="Rename category"
                     >
-                      <Trash2 size={13} />
+                      <Pencil size={13} /> Rename
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setDeleteTarget(cat)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-destructive/30 text-destructive rounded-lg hover:bg-[#fde8e8] transition-colors disabled:opacity-50"
+                      title={
+                        cat.entry_count > 0
+                          ? `Reassign ${cat.entry_count} entr${cat.entry_count === 1 ? 'y' : 'ies'} before deleting`
+                          : 'Delete category'
+                      }
+                    >
+                      <Trash2 size={13} /> Delete
                     </button>
                   </div>
                 </div>
@@ -1165,12 +1221,103 @@ function AdminCategories({
           </div>
         )}
       </div>
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={() => setEditing(null)} />
+          <div className="relative bg-card border border-border rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4">
+            <h3 className="text-base font-semibold text-foreground" style={{ fontFamily: "'Lora', serif" }}>
+              Rename category
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Entries currently labeled &quot;{editing.name}&quot; will be updated to the new name.
+            </p>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && void handleRename()}
+              maxLength={100}
+              disabled={busy}
+              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25"
+              autoFocus
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="px-4 py-2 text-sm border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleRename()}
+                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/85 transition-colors disabled:opacity-50"
+              >
+                {busy ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
+            onClick={() => setDeleteTarget(null)}
+          />
+          <div className="relative bg-card border border-border rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4">
+            <div className="w-11 h-11 bg-[#fde8e8] rounded-full flex items-center justify-center">
+              <AlertTriangle size={20} className="text-destructive" />
+            </div>
+            <div>
+              <h3
+                className="text-base font-semibold text-foreground mb-1"
+                style={{ fontFamily: "'Lora', serif" }}
+              >
+                Delete category?
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                &quot;<span className="font-medium text-foreground">{deleteTarget.name}</span>&quot; will be
+                permanently removed.
+                {deleteTarget.entry_count > 0 && (
+                  <span className="block mt-2 text-destructive">
+                    Still used by {deleteTarget.entry_count} entr
+                    {deleteTarget.entry_count === 1 ? 'y' : 'ies'}. Reassign them first.
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 text-sm border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDelete()}
+                disabled={busy || deleteTarget.entry_count > 0}
+                className="px-4 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/85 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function AdminDashboard({
   entries,
+  categories,
   usingLocalFallback,
   onAdd,
   onUpdate,
@@ -1180,9 +1327,13 @@ function AdminDashboard({
   onArchiveMany,
   onUnarchive,
   onUnarchiveMany,
+  onAddCategory,
+  onRenameCategory,
+  onDeleteCategory,
   onLogout,
 }: {
   entries: Entry[];
+  categories: CategoryItem[];
   usingLocalFallback: boolean;
   onAdd: (e: EntryInput) => Promise<Entry | void>;
   onUpdate: (e: Entry) => Promise<Entry | void>;
@@ -1192,10 +1343,12 @@ function AdminDashboard({
   onArchiveMany: (ids: number[]) => Promise<number>;
   onUnarchive: (id: number) => Promise<Entry | void>;
   onUnarchiveMany: (ids: number[]) => Promise<number>;
+  onAddCategory: (name: string) => Promise<CategoryItem | void>;
+  onRenameCategory: (id: number, name: string) => Promise<CategoryItem | void>;
+  onDeleteCategory: (id: number) => Promise<void>;
   onLogout: () => void;
 }) {
   const [section, setSection] = useState<AdminSection>('overview');
-  const [customCategories, setCustomCategories] = useState<string[]>(() => getCustomCategories());
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -1212,7 +1365,10 @@ function AdminDashboard({
     () => entries.filter((e) => e.is_archived),
     [entries],
   );
-  const allCategories = [...CATEGORIES, ...customCategories];
+  const allCategories = useMemo(
+    () => (categories.length ? categories.map((c) => c.name) : [...CATEGORIES]),
+    [categories],
+  );
 
   const handleArchive = async (id: number) => {
     await onArchive(id);
@@ -1338,7 +1494,7 @@ function AdminDashboard({
             <AdminOverview
               entries={activeEntries}
               archived={archivedEntries}
-              customCategories={customCategories}
+              categoryNames={allCategories}
             />
           )}
           {section === 'journals' && (
@@ -1374,19 +1530,10 @@ function AdminDashboard({
           )}
           {section === 'categories' && (
             <AdminCategories
-              allCategories={allCategories}
-              customCategories={customCategories}
-              entries={activeEntries}
-              onAddCategory={(name) => {
-                const next = [...customCategories, name];
-                setCustomCategories(next);
-                saveCustomCategories(next);
-              }}
-              onDeleteCategory={(name) => {
-                const next = customCategories.filter((c) => c !== name);
-                setCustomCategories(next);
-                saveCustomCategories(next);
-              }}
+              categories={categories}
+              onAdd={onAddCategory}
+              onRename={onRenameCategory}
+              onDelete={onDeleteCategory}
               showToast={showToast}
             />
           )}
@@ -1411,6 +1558,7 @@ function AdminDashboard({
 
 export function AdminPage({
   entries,
+  categories,
   loading,
   usingLocalFallback,
   onAdd,
@@ -1421,8 +1569,12 @@ export function AdminPage({
   onArchiveMany,
   onUnarchive,
   onUnarchiveMany,
+  onAddCategory,
+  onRenameCategory,
+  onDeleteCategory,
 }: {
   entries: Entry[];
+  categories: CategoryItem[];
   loading: boolean;
   usingLocalFallback: boolean;
   onAdd: (e: EntryInput) => Promise<Entry | void>;
@@ -1433,13 +1585,16 @@ export function AdminPage({
   onArchiveMany: (ids: number[]) => Promise<number>;
   onUnarchive: (id: number) => Promise<Entry | void>;
   onUnarchiveMany: (ids: number[]) => Promise<number>;
+  onAddCategory: (name: string) => Promise<CategoryItem | void>;
+  onRenameCategory: (id: number, name: string) => Promise<CategoryItem | void>;
+  onDeleteCategory: (id: number) => Promise<void>;
   onRefresh?: () => Promise<void>;
 }) {
   const [authed, setAuthed] = useState(() => isAdminAuthenticated());
 
   // Only block on the first load. Remounting AdminDashboard on every refresh
   // resets section back to Overview.
-  if (loading && entries.length === 0) {
+  if (loading && entries.length === 0 && categories.length === 0) {
     return (
       <main className="max-w-5xl mx-auto px-5 md:px-8 py-12">
         <p className="text-sm text-muted-foreground">Loading database…</p>
@@ -1450,6 +1605,7 @@ export function AdminPage({
   return authed ? (
     <AdminDashboard
       entries={entries}
+      categories={categories}
       usingLocalFallback={usingLocalFallback}
       onAdd={onAdd}
       onUpdate={onUpdate}
@@ -1459,6 +1615,9 @@ export function AdminPage({
       onArchiveMany={onArchiveMany}
       onUnarchive={onUnarchive}
       onUnarchiveMany={onUnarchiveMany}
+      onAddCategory={onAddCategory}
+      onRenameCategory={onRenameCategory}
+      onDeleteCategory={onDeleteCategory}
       onLogout={() => setAuthed(false)}
     />
   ) : (

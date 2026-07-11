@@ -1,13 +1,7 @@
 export type EntryType = 'Journal' | 'Article' | 'Thesis' | 'Literature Review';
 
-export type Category =
-  | 'Clinical Psychology'
-  | 'Developmental Psychology'
-  | 'Cognitive Psychology'
-  | 'Social Psychology'
-  | 'Educational Psychology'
-  | 'Mental Health'
-  | 'Research Methods';
+/** Live category name from GET /api/categories/list */
+export type Category = string;
 
 export interface Entry {
   id: number;
@@ -54,6 +48,20 @@ export interface CategoryEntries {
 
 export interface CategoriesResponse {
   categories: CategoryEntries[];
+}
+
+export interface CategoryItem {
+  id: number;
+  name: string;
+  entry_count: number;
+}
+
+export interface CategoryListResponse {
+  items: CategoryItem[];
+}
+
+export interface CategoryInput {
+  name: string;
 }
 
 /** API archived query: active only, archived only, or both. */

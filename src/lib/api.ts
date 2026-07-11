@@ -2,6 +2,9 @@ import type {
   ApiEnvelope,
   BulkActionResult,
   CategoriesResponse,
+  CategoryInput,
+  CategoryItem,
+  CategoryListResponse,
   Entry,
   EntryInput,
   FetchEntriesParams,
@@ -89,6 +92,38 @@ export async function fetchCategories(params: {
   }
 
   return request<CategoriesResponse>(`/api/categories?${search.toString()}`);
+}
+
+/** Category definitions for admin manage UI. */
+export async function fetchCategoryList(): Promise<CategoryItem[]> {
+  const data = await request<CategoryListResponse>('/api/categories/list');
+  return data.items ?? [];
+}
+
+export async function createCategory(input: CategoryInput): Promise<CategoryItem> {
+  return request<CategoryItem>('/api/categories', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ name: input.name.trim() }),
+  });
+}
+
+export async function updateCategory(
+  id: number,
+  input: CategoryInput,
+): Promise<CategoryItem> {
+  return request<CategoryItem>(`/api/categories?id=${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ name: input.name.trim() }),
+  });
+}
+
+export async function deleteCategory(id: number): Promise<void> {
+  await request<null>(`/api/categories?id=${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
 }
 
 export async function loginAdmin(password: string): Promise<string> {

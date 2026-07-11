@@ -18,11 +18,12 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import {
   CATEGORIES,
-  CATEGORY_COLORS,
-  CATEGORY_META,
   TYPES,
   YEARS,
+  categoryColor,
+  categoryMeta,
 } from "@/app/catalog";
+import { useCategories } from "@/hooks/useCategories";
 import { useEntries } from "@/hooks/useEntries";
 import type { Category, Entry, EntryType } from "@/lib/types";
 
@@ -198,7 +199,7 @@ function LiteratureModal({ entry, onClose }: { entry: Entry; onClose: () => void
         <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-border">
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium font-mono ${CATEGORY_COLORS[entry.category]}`}>
+              <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium font-mono ${categoryColor(entry.category)}`}>
                 {entry.category}
               </span>
               <span className="text-xs text-muted-foreground font-mono border border-border px-2 py-1 rounded">{entry.type}</span>
@@ -261,7 +262,7 @@ function ResultCard({ entry }: { entry: Entry }) {
     <>
     <article className="bg-card border border-border rounded-lg p-6 flex flex-col gap-4 hover:shadow-md hover:border-[#2e4057]/25 transition-all duration-200 group">
       <div className="flex items-start justify-between gap-3">
-        <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium tracking-wide font-mono ${CATEGORY_COLORS[entry.category]}`}>
+        <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium tracking-wide font-mono ${categoryColor(entry.category)}`}>
           {entry.category}
         </span>
         <div className="flex items-center gap-2 shrink-0">
@@ -314,7 +315,8 @@ function ResultCard({ entry }: { entry: Entry }) {
 
 // ─── Home Page ────────────────────────────────────────────────────────────────
 
-function HomePage({ onNav, entries, entriesLoading }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[]; entriesLoading: boolean }) {
+function HomePage({ onNav, entries, entriesLoading, categories }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[]; entriesLoading: boolean; categories: string[] }) {
+  const categoryOptions = categories.length ? categories : CATEGORIES;
   const [query, setQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | "">("");
@@ -408,7 +410,7 @@ function HomePage({ onNav, entries, entriesLoading }: { onNav: (p: Page, cat?: C
 
           <div className={`${filtersOpen ? "flex" : "hidden"} sm:flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap`}>
             {[
-              { label: "All Categories", value: selectedCategory, setter: (v: string) => setSelectedCategory(v as Category | ""), options: CATEGORIES.map((c) => ({ label: c, value: c })) },
+              { label: "All Categories", value: selectedCategory, setter: (v: string) => setSelectedCategory(v as Category | ""), options: categoryOptions.map((c) => ({ label: c, value: c })) },
               { label: "Any Year", value: selectedYear, setter: (v: string) => setSelectedYear(v ? Number(v) : ""), options: YEARS.map((y) => ({ label: String(y), value: String(y) })) },
               { label: "All Types", value: selectedType, setter: (v: string) => setSelectedType(v as EntryType | ""), options: TYPES.map((t) => ({ label: t, value: t })) },
             ].map(({ label, value, setter, options }) => (
@@ -448,7 +450,7 @@ function HomePage({ onNav, entries, entriesLoading }: { onNav: (p: Page, cat?: C
 
           {/* Category chips */}
           <div className="hidden md:flex flex-wrap gap-2 mt-4">
-            {CATEGORIES.map((cat) => (
+            {categoryOptions.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(selectedCategory === cat ? "" : cat)}
@@ -533,7 +535,8 @@ function HomePage({ onNav, entries, entriesLoading }: { onNav: (p: Page, cat?: C
 
 // ─── Categories Page ──────────────────────────────────────────────────────────
 
-function CategoriesPage({ onNav, entries, entriesLoading }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[]; entriesLoading: boolean }) {
+function CategoriesPage({ onNav, entries, entriesLoading, categories }: { onNav: (p: Page, cat?: Category) => void; entries: Entry[]; entriesLoading: boolean; categories: string[] }) {
+  const categoryList = categories.length ? categories : CATEGORIES;
   return (
     <main className="max-w-5xl mx-auto px-5 md:px-8 py-12">
       <div className="mb-10">
@@ -547,8 +550,8 @@ function CategoriesPage({ onNav, entries, entriesLoading }: { onNav: (p: Page, c
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {CATEGORIES.map((cat) => {
-          const meta = CATEGORY_META[cat];
+        {categoryList.map((cat) => {
+          const meta = categoryMeta(cat);
           const count = entriesLoading ? "…" : entries.filter((e) => e.category === cat).length;
           return (
             <button
@@ -570,10 +573,12 @@ function CategoriesPage({ onNav, entries, entriesLoading }: { onNav: (p: Page, c
               </div>
               <div className="mt-auto pt-4 border-t border-border">
                 <p className="text-xs text-muted-foreground font-mono mb-2">{count} entries in database</p>
-                <p className="text-xs text-muted-foreground italic" style={{ fontFamily: "'Lora', serif" }}>
-                  Key journals: {meta.journals.slice(0, 2).join(", ")}
-                  {meta.journals.length > 2 && " & more"}
-                </p>
+                {meta.journals.length > 0 && (
+                  <p className="text-xs text-muted-foreground italic" style={{ fontFamily: "'Lora', serif" }}>
+                    Key journals: {meta.journals.slice(0, 2).join(", ")}
+                    {meta.journals.length > 2 && " & more"}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-1 text-xs text-primary font-medium">
                 Browse {cat.split(" ")[0]} literature
@@ -588,7 +593,7 @@ function CategoriesPage({ onNav, entries, entriesLoading }: { onNav: (p: Page, c
       <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden border border-border">
         {[
           { label: "Total Entries", value: entriesLoading ? "…" : entries.length },
-          { label: "Disciplines", value: CATEGORIES.length },
+          { label: "Disciplines", value: categoryList.length },
           { label: "Publication Types", value: TYPES.length },
           { label: "Year Range", value: "2020–2023" },
         ].map(({ label, value }) => (
@@ -747,6 +752,7 @@ export default function App() {
   const [activePage, setActivePage] = useState<Page>("home");
   const [preselectedCategory, setPreselectedCategory] = useState<Category | undefined>();
   const { activeEntries, loading } = useEntries();
+  const { names: categoryNames } = useCategories();
 
   const handleNav = (p: Page, cat?: Category) => {
     setActivePage(p);
@@ -764,10 +770,16 @@ export default function App() {
           onNav={handleNav}
           entries={activeEntries}
           entriesLoading={loading}
+          categories={categoryNames}
         />
       )}
       {activePage === "categories" && (
-        <CategoriesPage onNav={handleNav} entries={activeEntries} entriesLoading={loading} />
+        <CategoriesPage
+          onNav={handleNav}
+          entries={activeEntries}
+          entriesLoading={loading}
+          categories={categoryNames}
+        />
       )}
       {activePage === "about" && <AboutPage />}
 

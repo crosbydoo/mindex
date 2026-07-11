@@ -1,11 +1,12 @@
+import { useCategories } from '@/hooks/useCategories';
 import { useEntries } from '@/hooks/useEntries';
 import { AdminPage } from '@/app/admin/AdminPage';
 
 export default function AdminApp() {
   const {
     entries,
-    loading,
-    usingLocalFallback,
+    loading: entriesLoading,
+    usingLocalFallback: entriesFallback,
     addEntry,
     updateEntry,
     deleteEntry,
@@ -14,15 +15,37 @@ export default function AdminApp() {
     archiveEntries,
     unarchiveEntry,
     unarchiveEntries,
-    refresh,
+    refresh: refreshEntries,
   } = useEntries();
+
+  const {
+    categories,
+    loading: categoriesLoading,
+    usingLocalFallback: categoriesFallback,
+    addCategory,
+    renameCategory,
+    removeCategory,
+  } = useCategories();
+
+  const handleRenameCategory = async (id: number, name: string) => {
+    const item = await renameCategory(id, name);
+    // Rename also updates entry.category strings on the server.
+    await refreshEntries();
+    return item;
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    await removeCategory(id);
+    await refreshEntries();
+  };
 
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "'Outfit', sans-serif" }}>
       <AdminPage
         entries={entries}
-        loading={loading}
-        usingLocalFallback={usingLocalFallback}
+        categories={categories}
+        loading={entriesLoading || categoriesLoading}
+        usingLocalFallback={entriesFallback || categoriesFallback}
         onAdd={addEntry}
         onUpdate={updateEntry}
         onDelete={deleteEntry}
@@ -31,7 +54,10 @@ export default function AdminApp() {
         onArchiveMany={archiveEntries}
         onUnarchive={unarchiveEntry}
         onUnarchiveMany={unarchiveEntries}
-        onRefresh={refresh}
+        onAddCategory={addCategory}
+        onRenameCategory={handleRenameCategory}
+        onDeleteCategory={handleDeleteCategory}
+        onRefresh={refreshEntries}
       />
     </div>
   );

@@ -8,9 +8,10 @@ import {
   Layers,
   Users,
 } from 'lucide-react';
-import type { Category, EntryType } from '@/lib/types';
+import type { EntryType } from '@/lib/types';
 
-export const CATEGORIES: Category[] = [
+/** Seed / default names — UI styling fallbacks. Live list comes from the API. */
+export const DEFAULT_CATEGORIES = [
   'Clinical Psychology',
   'Cognitive Psychology',
   'Developmental Psychology',
@@ -18,7 +19,10 @@ export const CATEGORIES: Category[] = [
   'Mental Health',
   'Research Methods',
   'Social Psychology',
-];
+] as const;
+
+/** @deprecated Prefer live names from useCategories(). Kept for fallback UI. */
+export const CATEGORIES: string[] = [...DEFAULT_CATEGORIES];
 
 export const TYPES: EntryType[] = [
   'Journal',
@@ -29,7 +33,7 @@ export const TYPES: EntryType[] = [
 
 export const YEARS = [2020, 2021, 2022, 2023];
 
-export const CATEGORY_COLORS: Record<Category, string> = {
+const KNOWN_COLORS: Record<string, string> = {
   'Clinical Psychology': 'bg-[#dce8f0] text-[#2e4057]',
   'Cognitive Psychology': 'bg-[#ddf0e5] text-[#2a5c3a]',
   'Developmental Psychology': 'bg-[#f0e8dc] text-[#5c3a2a]',
@@ -39,10 +43,19 @@ export const CATEGORY_COLORS: Record<Category, string> = {
   'Social Psychology': 'bg-[#dcf0ee] text-[#2a5c58]',
 };
 
-export const CATEGORY_META: Record<
-  Category,
-  { color: string; bg: string; icon: ReactNode; description: string; journals: string[] }
-> = {
+const FALLBACK_COLOR = 'bg-muted text-muted-foreground';
+
+export const CATEGORY_COLORS: Record<string, string> = { ...KNOWN_COLORS };
+
+type CategoryMeta = {
+  color: string;
+  bg: string;
+  icon: ReactNode;
+  description: string;
+  journals: string[];
+};
+
+const KNOWN_META: Record<string, CategoryMeta> = {
   'Clinical Psychology': {
     color: 'text-[#2e4057]',
     bg: 'bg-[#dce8f0]',
@@ -128,3 +141,21 @@ export const CATEGORY_META: Record<
     ],
   },
 };
+
+const FALLBACK_META: CategoryMeta = {
+  color: 'text-muted-foreground',
+  bg: 'bg-muted',
+  icon: <Layers size={20} />,
+  description: 'Psychology literature in this discipline.',
+  journals: [],
+};
+
+export const CATEGORY_META: Record<string, CategoryMeta> = { ...KNOWN_META };
+
+export function categoryColor(name: string): string {
+  return KNOWN_COLORS[name] ?? FALLBACK_COLOR;
+}
+
+export function categoryMeta(name: string): CategoryMeta {
+  return KNOWN_META[name] ?? FALLBACK_META;
+}
