@@ -1,5 +1,5 @@
 import { useEntries } from '@/hooks/useEntries';
-import { AdminPage } from './App';
+import { AdminPage } from '@/app/admin/AdminPage';
 
 export default function AdminApp() {
   const { entries, loading, usingLocalFallback, addEntry, updateEntry, deleteEntry, refresh } =
