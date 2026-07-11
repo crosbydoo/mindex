@@ -41,7 +41,7 @@ import {
   restoreEntries,
 } from "@/lib/archive";
 import { loginAdmin, logoutAdmin } from "@/lib/api";
-import { clearAdminToken, setAdminToken } from "@/lib/auth";
+import { clearAdminToken, isAdminAuthenticated, setAdminToken } from "@/lib/auth";
 import type { Category, Entry, EntryInput, EntryType } from "@/lib/types";
 
 function PsiIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
@@ -817,7 +817,7 @@ function AdminDashboard({
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Archive size={14} /> Arsip ({stats.archived})
+          <Archive size={14} /> Archive ({stats.archived})
         </button>
       </div>
 
@@ -864,7 +864,7 @@ function AdminDashboard({
                 onClick={() => setBulkAction("archive")}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg bg-card hover:bg-muted transition-colors"
               >
-                <Archive size={14} /> Arsip
+                <Archive size={14} /> Archive
               </button>
               <button
                 type="button"
@@ -1020,7 +1020,7 @@ function AdminDashboard({
                                 syncArchiveState();
                                 showToast("Entry archived");
                               }}
-                              title="Arsip"
+                              title="Archive"
                               className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors"
                             >
                               <Archive size={14} />
@@ -1152,7 +1152,7 @@ function BulkConfirmModal({
         <p className="text-sm text-muted-foreground mb-6">
           {isDelete
             ? `Permanently delete ${count} entr${count === 1 ? "y" : "ies"}. This cannot be undone.`
-            : `Move ${count} entr${count === 1 ? "y" : "ies"} to Arsip. You can restore them later.`}
+            : `Move ${count} entr${count === 1 ? "y" : "ies"} to Archive. You can restore them later.`}
         </p>
         <div className="flex gap-2 justify-end">
           <button
@@ -1171,7 +1171,7 @@ function BulkConfirmModal({
               isDelete ? "bg-destructive hover:bg-destructive/90" : "bg-primary hover:bg-primary/85"
             }`}
           >
-            {busy ? "Working…" : isDelete ? "Delete" : "Arsip"}
+            {busy ? "Working…" : isDelete ? "Delete" : "Archive"}
           </button>
         </div>
       </div>
@@ -1627,7 +1627,7 @@ export function AdminPage({
   onDelete: (id: number) => Promise<void>;
   onRefresh?: () => Promise<void>;
 }) {
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(() => isAdminAuthenticated());
 
   if (loading) {
     return (
