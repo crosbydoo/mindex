@@ -34,6 +34,18 @@ export default defineConfig({
   server: {
     port: 3005,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'https://mindex-api.duckdns.org',
+        changeOrigin: true,
+        secure: true,
+      },
+      '/health': {
+        target: 'https://mindex-api.duckdns.org',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.

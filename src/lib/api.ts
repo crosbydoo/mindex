@@ -9,7 +9,8 @@ import type {
 import { getAdminToken } from './auth';
 
 const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL ?? 'https://mindex-api.duckdns.org'
+  import.meta.env.VITE_API_BASE_URL ??
+  (import.meta.env.DEV ? '' : 'https://mindex-api.duckdns.org')
 ).replace(/\/$/, '');
 
 

@@ -1,5 +1,7 @@
 import {
   AlertTriangle,
+  Archive,
+  ArchiveRestore,
   ArrowRight,
   Baby,
   BookMarked,
@@ -32,6 +34,12 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useEntries } from "@/hooks/useEntries";
+import {
+  archiveEntries,
+  getArchivedIds,
+  removeArchivedIds,
+  restoreEntries,
+} from "@/lib/archive";
 import { loginAdmin, logoutAdmin } from "@/lib/api";
 import { clearAdminToken, setAdminToken } from "@/lib/auth";
 import type { Category, Entry, EntryInput, EntryType } from "@/lib/types";
@@ -563,27 +571,85 @@ function AdminDashboard({
   const [filterCat, setFilterCat] = useState<Category | "">("");
   const [showModal, setShowModal] = useState<"add" | Entry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
+  const [bulkAction, setBulkAction] = useState<"delete" | "archive" | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [view, setView] = useState<"active" | "archive">("active");
+  const [archivedIds, setArchivedIds] = useState<number[]>(() => getArchivedIds());
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  const archivedSet = useMemo(() => new Set(archivedIds), [archivedIds]);
+
+  const pool = useMemo(() => {
+    if (view === "archive") {
+      return entries.filter((e) => archivedSet.has(e.id));
+    }
+    return entries.filter((e) => !archivedSet.has(e.id));
+  }, [entries, archivedSet, view]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return entries.filter((e) =>
+    return pool.filter((e) =>
       (!q || e.title.toLowerCase().includes(q) || e.author.toLowerCase().includes(q)) &&
       (!filterCat || e.category === filterCat)
     );
-  }, [entries, search, filterCat]);
+  }, [pool, search, filterCat]);
 
-  const stats = useMemo(() => ({
-    total: entries.length,
-    byType: TYPES.reduce((acc, t) => ({ ...acc, [t]: entries.filter((e) => e.type === t).length }), {} as Record<EntryType, number>),
-    recentYear: entries.length ? Math.max(...entries.map((e) => e.year)) : "—",
-  }), [entries]);
+  const filteredIds = useMemo(() => filtered.map((e) => e.id), [filtered]);
+  const allFilteredSelected =
+    filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
+  const someFilteredSelected =
+    filteredIds.some((id) => selectedIds.has(id)) && !allFilteredSelected;
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [view, search, filterCat]);
+
+  const stats = useMemo(() => {
+    const active = entries.filter((e) => !archivedSet.has(e.id));
+    return {
+      total: active.length,
+      archived: archivedIds.length,
+      byType: TYPES.reduce(
+        (acc, t) => ({ ...acc, [t]: active.filter((e) => e.type === t).length }),
+        {} as Record<EntryType, number>,
+      ),
+      recentYear: active.length ? Math.max(...active.map((e) => e.year)) : "—",
+    };
+  }, [entries, archivedIds, archivedSet]);
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      return;
+    }
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const syncArchiveState = () => setArchivedIds(getArchivedIds());
 
   const handleSave = async (data: EntryInput, existing?: Entry) => {
     try {
@@ -596,34 +662,99 @@ function AdminDashboard({
       }
       setShowModal(null);
     } catch {
-      showToast(usingLocalFallback ? "API unavailable — start the Go server on :8080" : "Failed to save entry", "error");
+      showToast(
+        usingLocalFallback
+          ? "API unavailable — check https://mindex-api.duckdns.org"
+          : "Failed to save entry",
+        "error",
+      );
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
       await onDelete(id);
+      removeArchivedIds([id]);
+      syncArchiveState();
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       setDeleteTarget(null);
-      showToast("Entry deleted", "error");
+      showToast("Entry deleted");
     } catch {
-      showToast(usingLocalFallback ? "API unavailable — start the Go server on :8080" : "Failed to delete entry", "error");
+      showToast(
+        usingLocalFallback
+          ? "API unavailable — check https://mindex-api.duckdns.org"
+          : "Failed to delete entry",
+        "error",
+      );
+    }
+  };
+
+  const handleBulkArchive = () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    archiveEntries(ids);
+    syncArchiveState();
+    setSelectedIds(new Set());
+    setBulkAction(null);
+    showToast(`${ids.length} entr${ids.length === 1 ? "y" : "ies"} archived`);
+  };
+
+  const handleBulkRestore = () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    restoreEntries(ids);
+    syncArchiveState();
+    setSelectedIds(new Set());
+    showToast(`${ids.length} entr${ids.length === 1 ? "y" : "ies"} restored`);
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    let ok = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await onDelete(id);
+        removeArchivedIds([id]);
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    syncArchiveState();
+    setSelectedIds(new Set());
+    setBulkAction(null);
+    setBulkBusy(false);
+    if (failed === 0) {
+      showToast(`${ok} entr${ok === 1 ? "y" : "ies"} deleted`);
+    } else {
+      showToast(`Deleted ${ok}, failed ${failed}`, "error");
     }
   };
 
   return (
     <main className="max-w-5xl mx-auto px-5 md:px-8 py-10">
-      {/* Header row */}
       <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <LayoutDashboard size={16} className="text-accent" />
             <p className="text-xs font-mono tracking-widest text-accent uppercase">Admin Panel</p>
           </div>
-          <h1 className="text-2xl font-medium text-foreground" style={{ fontFamily: "'Lora', serif" }}>Literature Database</h1>
+          <h1 className="text-2xl font-medium text-foreground" style={{ fontFamily: "'Lora', serif" }}>
+            Literature Database
+          </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowModal("add")}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 transition-colors">
+          <button
+            onClick={() => setShowModal("add")}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 transition-colors"
+          >
             <Plus size={15} /> Add Entry
           </button>
           <button
@@ -635,7 +766,8 @@ function AdminDashboard({
                   onLogout();
                 });
             }}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-colors">
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-colors"
+          >
             <LogOut size={14} /> Sign out
           </button>
         </div>
@@ -643,17 +775,17 @@ function AdminDashboard({
 
       {usingLocalFallback && (
         <p className="mb-6 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-          API is offline. Check the backend at <code className="font-mono">https://mindex-api.duckdns.org</code> or set{" "}
+          API is offline. Check the backend at{" "}
+          <code className="font-mono">https://mindex-api.duckdns.org</code> or set{" "}
           <code className="font-mono">VITE_API_BASE_URL</code>.
         </p>
       )}
 
-      {/* Stats strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {[
-          { label: "Total Entries", value: stats.total, icon: <BookMarked size={16} /> },
+          { label: "Active Entries", value: stats.total, icon: <BookMarked size={16} /> },
+          { label: "Archived", value: stats.archived, icon: <Archive size={16} /> },
           { label: "Journals", value: stats.byType["Journal"], icon: <FileText size={16} /> },
-          { label: "Articles", value: stats.byType["Article"], icon: <FileText size={16} /> },
           { label: "Latest Year", value: stats.recentYear, icon: <FileText size={16} /> },
         ].map(({ label, value, icon }) => (
           <div key={label} className="bg-card border border-border rounded-lg px-5 py-4">
@@ -664,64 +796,211 @@ function AdminDashboard({
         ))}
       </div>
 
-      {/* Filters row */}
+      <div className="flex gap-1 mb-5 p-1 bg-muted/50 rounded-lg w-fit">
+        <button
+          type="button"
+          onClick={() => setView("active")}
+          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+            view === "active"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Active ({stats.total})
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("archive")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+            view === "archive"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Archive size={14} /> Arsip ({stats.archived})
+        </button>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
           <input
-            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by title or author…"
             className="w-full pl-9 pr-3 py-2 text-sm bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/25"
           />
         </div>
-        <select value={filterCat} onChange={(e) => setFilterCat(e.target.value as Category | "")}
-          className="px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 cursor-pointer">
+        <select
+          value={filterCat}
+          onChange={(e) => setFilterCat(e.target.value as Category | "")}
+          className="px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 cursor-pointer"
+        >
           <option value="">All Categories</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
         </select>
-        <span className="self-center text-xs text-muted-foreground font-mono whitespace-nowrap">{filtered.length} entries</span>
+        <span className="self-center text-xs text-muted-foreground font-mono whitespace-nowrap">
+          {filtered.length} entries
+        </span>
       </div>
 
-      {/* Table */}
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-3">
+          <span className="text-sm text-foreground font-medium mr-1">
+            {selectedIds.size} selected
+          </span>
+          {view === "active" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setBulkAction("archive")}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg bg-card hover:bg-muted transition-colors"
+              >
+                <Archive size={14} /> Arsip
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkAction("delete")}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-destructive/30 text-destructive rounded-lg bg-card hover:bg-[#fde8e8] transition-colors"
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleBulkRestore}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg bg-card hover:bg-muted transition-colors"
+              >
+                <ArchiveRestore size={14} /> Restore
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkAction("delete")}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-destructive/30 text-destructive rounded-lg bg-card hover:bg-[#fde8e8] transition-colors"
+              >
+                <Trash2 size={14} /> Delete permanently
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Title / Author</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden md:table-cell">Category</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Type</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Year</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Actions</th>
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someFilteredSelected;
+                    }}
+                    onChange={toggleSelectAll}
+                    disabled={filtered.length === 0}
+                    aria-label="Select all"
+                    className="size-4 rounded border-border accent-primary cursor-pointer"
+                  />
+                </th>
+                <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Title / Author
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden md:table-cell">
+                  Category
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden sm:table-cell">
+                  Type
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden sm:table-cell">
+                  Year
+                </th>
+                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-muted-foreground">
-                    No entries match your search.
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                    {view === "archive"
+                      ? "No archived entries yet."
+                      : "No entries match your search."}
                   </td>
                 </tr>
-              ) : filtered.map((entry) => (
-                <tr key={entry.id} className="hover:bg-muted/30 transition-colors align-top">
-                    <td className="px-5 py-4">
-                      <button onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
-                        className="text-left group flex items-start gap-2 w-full">
-                        <ChevronDown size={14} className={`mt-0.5 text-muted-foreground shrink-0 transition-transform ${expandedId === entry.id ? "rotate-180" : ""}`} />
+              ) : (
+                filtered.map((entry) => (
+                  <tr
+                    key={entry.id}
+                    className={`hover:bg-muted/30 transition-colors align-top ${
+                      selectedIds.has(entry.id) ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(entry.id)}
+                        onChange={() => toggleSelect(entry.id)}
+                        aria-label={`Select ${entry.title}`}
+                        className="size-4 rounded border-border accent-primary cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-3 py-4">
+                      <button
+                        onClick={() =>
+                          setExpandedId(expandedId === entry.id ? null : entry.id)
+                        }
+                        className="text-left group flex items-start gap-2 w-full"
+                      >
+                        <ChevronDown
+                          size={14}
+                          className={`mt-0.5 text-muted-foreground shrink-0 transition-transform ${
+                            expandedId === entry.id ? "rotate-180" : ""
+                          }`}
+                        />
                         <div>
-                          <p className="font-medium text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-1">{entry.title}</p>
+                          <p className="font-medium text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-1">
+                            {entry.title}
+                          </p>
                           <p className="text-xs text-muted-foreground mt-0.5">{entry.author}</p>
                           {expandedId === entry.id && (
                             <div className="mt-2 pt-2 border-t border-border">
-                              <p className="text-xs text-muted-foreground leading-relaxed">{entry.abstract}</p>
-                              <p className="text-xs text-muted-foreground italic mt-1" style={{ fontFamily: "'Lora', serif" }}>{entry.source}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                {entry.abstract}
+                              </p>
+                              <p
+                                className="text-xs text-muted-foreground italic mt-1"
+                                style={{ fontFamily: "'Lora', serif" }}
+                              >
+                                {entry.source}
+                              </p>
                             </div>
                           )}
                         </div>
                       </button>
                     </td>
                     <td className="px-4 py-4 hidden md:table-cell">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono ${CATEGORY_COLORS[entry.category]}`}>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono ${CATEGORY_COLORS[entry.category]}`}
+                      >
                         {entry.category.split(" ")[0]}
                       </span>
                     </td>
@@ -733,29 +1012,68 @@ function AdminDashboard({
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setShowModal(entry)} title="Edit"
-                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
-                          <Pencil size={14} />
-                        </button>
-                        <button onClick={() => setDeleteTarget(entry)} title="Delete"
-                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-[#fde8e8] rounded transition-colors">
-                          <Trash2 size={14} />
-                        </button>
+                        {view === "active" ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                archiveEntries([entry.id]);
+                                syncArchiveState();
+                                showToast("Entry archived");
+                              }}
+                              title="Arsip"
+                              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors"
+                            >
+                              <Archive size={14} />
+                            </button>
+                            <button
+                              onClick={() => setShowModal(entry)}
+                              title="Edit"
+                              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(entry)}
+                              title="Delete"
+                              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-[#fde8e8] rounded transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                restoreEntries([entry.id]);
+                                syncArchiveState();
+                                showToast("Entry restored");
+                              }}
+                              title="Restore"
+                              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors"
+                            >
+                              <ArchiveRestore size={14} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(entry)}
+                              title="Delete permanently"
+                              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-[#fde8e8] rounded transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modals */}
       {showModal === "add" && (
-        <EntryFormModal
-          onSave={(data) => void handleSave(data)}
-          onClose={() => setShowModal(null)}
-        />
+        <EntryFormModal onSave={(data) => void handleSave(data)} onClose={() => setShowModal(null)} />
       )}
       {showModal && showModal !== "add" && (
         <EntryFormModal
@@ -771,15 +1089,93 @@ function AdminDashboard({
           onClose={() => setDeleteTarget(null)}
         />
       )}
+      {bulkAction && (
+        <BulkConfirmModal
+          action={bulkAction}
+          count={selectedIds.size}
+          busy={bulkBusy}
+          onConfirm={() => {
+            if (bulkAction === "archive") handleBulkArchive();
+            else void handleBulkDelete();
+          }}
+          onClose={() => (bulkBusy ? undefined : setBulkAction(null))}
+        />
+      )}
 
-      {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium border ${toast.type === "success" ? "bg-card border-[#5a7a63]/40 text-foreground" : "bg-[#fde8e8] border-destructive/20 text-destructive"}`}>
-          {toast.type === "success" ? <Check size={14} className="text-accent" /> : <Trash2 size={14} />}
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium border ${
+            toast.type === "success"
+              ? "bg-card border-[#5a7a63]/40 text-foreground"
+              : "bg-[#fde8e8] border-destructive/20 text-destructive"
+          }`}
+        >
+          {toast.type === "success" ? (
+            <Check size={14} className="text-accent" />
+          ) : (
+            <Trash2 size={14} />
+          )}
           {toast.msg}
         </div>
       )}
     </main>
+  );
+}
+
+function BulkConfirmModal({
+  action,
+  count,
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  action: "delete" | "archive";
+  count: number;
+  busy: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const isDelete = action === "delete";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="w-full max-w-sm bg-card border border-border rounded-xl p-6 shadow-xl">
+        <div
+          className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${
+            isDelete ? "bg-[#fde8e8] text-destructive" : "bg-muted text-primary"
+          }`}
+        >
+          {isDelete ? <Trash2 size={18} /> : <Archive size={18} />}
+        </div>
+        <h3 className="text-base font-semibold text-foreground mb-1" style={{ fontFamily: "'Lora', serif" }}>
+          {isDelete ? "Delete selected?" : "Archive selected?"}
+        </h3>
+        <p className="text-sm text-muted-foreground mb-6">
+          {isDelete
+            ? `Permanently delete ${count} entr${count === 1 ? "y" : "ies"}. This cannot be undone.`
+            : `Move ${count} entr${count === 1 ? "y" : "ies"} to Arsip. You can restore them later.`}
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+            className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onConfirm}
+            className={`px-4 py-2 text-sm rounded-lg text-white disabled:opacity-50 ${
+              isDelete ? "bg-destructive hover:bg-destructive/90" : "bg-primary hover:bg-primary/85"
+            }`}
+          >
+            {busy ? "Working…" : isDelete ? "Delete" : "Arsip"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1261,6 +1657,18 @@ export default function App() {
   const [activePage, setActivePage] = useState<Page>("home");
   const [preselectedCategory, setPreselectedCategory] = useState<Category | undefined>();
   const { entries, loading } = useEntries();
+  const [archivedIds, setArchivedIds] = useState<number[]>(() => getArchivedIds());
+
+  useEffect(() => {
+    const sync = () => setArchivedIds(getArchivedIds());
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
+
+  const publicEntries = useMemo(
+    () => entries.filter((e) => !archivedIds.includes(e.id)),
+    [entries, archivedIds],
+  );
 
   const handleNav = (p: Page, cat?: Category) => {
     setActivePage(p);
@@ -1273,9 +1681,16 @@ export default function App() {
       <Header activePage={activePage} onNav={handleNav} />
 
       {activePage === "home" && (
-        <HomePage key={preselectedCategory} onNav={handleNav} entries={entries} entriesLoading={loading} />
+        <HomePage
+          key={preselectedCategory}
+          onNav={handleNav}
+          entries={publicEntries}
+          entriesLoading={loading}
+        />
       )}
-      {activePage === "categories" && <CategoriesPage onNav={handleNav} entries={entries} entriesLoading={loading} />}
+      {activePage === "categories" && (
+        <CategoriesPage onNav={handleNav} entries={publicEntries} entriesLoading={loading} />
+      )}
       {activePage === "about" && <AboutPage />}
 
       <Footer />
