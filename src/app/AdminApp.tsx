@@ -9,8 +9,11 @@ export default function AdminApp() {
     addEntry,
     updateEntry,
     deleteEntry,
+    deleteEntries,
     archiveEntry,
+    archiveEntries,
     unarchiveEntry,
+    unarchiveEntries,
     refresh,
   } = useEntries();
 
@@ -23,8 +26,11 @@ export default function AdminApp() {
         onAdd={addEntry}
         onUpdate={updateEntry}
         onDelete={deleteEntry}
+        onDeleteMany={deleteEntries}
         onArchive={archiveEntry}
+        onArchiveMany={archiveEntries}
         onUnarchive={unarchiveEntry}
+        onUnarchiveMany={unarchiveEntries}
         onRefresh={refresh}
       />
     </div>

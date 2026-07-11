@@ -1,9 +1,12 @@
 import type {
   ApiEnvelope,
+  BulkActionResult,
   CategoriesResponse,
   Entry,
   EntryInput,
   FetchEntriesParams,
+  HealthData,
+  LoginData,
   PaginatedEntries,
 } from './types';
 import { getAdminToken } from './auth';
@@ -37,7 +40,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(body.message || response.statusText || 'Request failed');
   }
 
-  return body.data;
+  return body.data as T;
 }
 
 function authHeaders(): HeadersInit {
@@ -49,8 +52,12 @@ function authHeaders(): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 
-export async function checkHealth(): Promise<{ status: string }> {
-  return request<{ status: string }>('/health');
+function normalizeIds(ids: number[]): number[] {
+  return [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+}
+
+export async function checkHealth(): Promise<HealthData> {
+  return request<HealthData>('/health');
 }
 
 export async function fetchEntries(
@@ -85,7 +92,7 @@ export async function fetchCategories(params: {
 }
 
 export async function loginAdmin(password: string): Promise<string> {
-  const data = await request<{ token: string }>('/api/login', {
+  const data = await request<LoginData>('/api/login', {
     method: 'POST',
     body: JSON.stringify({ password }),
   });
@@ -119,6 +126,23 @@ export async function deleteEntry(id: number): Promise<void> {
   });
 }
 
+/** Bulk permanent delete — `DELETE /api/entries` with `{ ids }`. */
+export async function deleteEntries(ids: number[]): Promise<BulkActionResult> {
+  const normalized = normalizeIds(ids);
+  if (normalized.length === 0) {
+    return { affected: 0, ids: [] };
+  }
+  if (normalized.length === 1) {
+    await deleteEntry(normalized[0]);
+    return { affected: 1, ids: normalized };
+  }
+  return request<BulkActionResult>('/api/entries', {
+    method: 'DELETE',
+    headers: authHeaders(),
+    body: JSON.stringify({ ids: normalized }),
+  });
+}
+
 export async function archiveEntry(id: number): Promise<Entry> {
   return request<Entry>(`/api/entries/archive?id=${id}`, {
     method: 'POST',
@@ -126,9 +150,41 @@ export async function archiveEntry(id: number): Promise<Entry> {
   });
 }
 
+/** Bulk archive — `POST /api/entries/archive` with `{ ids }`. */
+export async function archiveEntries(ids: number[]): Promise<BulkActionResult | Entry> {
+  const normalized = normalizeIds(ids);
+  if (normalized.length === 0) {
+    return { affected: 0, ids: [] };
+  }
+  if (normalized.length === 1) {
+    return archiveEntry(normalized[0]);
+  }
+  return request<BulkActionResult>('/api/entries/archive', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ ids: normalized }),
+  });
+}
+
 export async function unarchiveEntry(id: number): Promise<Entry> {
   return request<Entry>(`/api/entries/unarchive?id=${id}`, {
     method: 'POST',
     headers: authHeaders(),
+  });
+}
+
+/** Bulk unarchive — `POST /api/entries/unarchive` with `{ ids }`. */
+export async function unarchiveEntries(ids: number[]): Promise<BulkActionResult | Entry> {
+  const normalized = normalizeIds(ids);
+  if (normalized.length === 0) {
+    return { affected: 0, ids: [] };
+  }
+  if (normalized.length === 1) {
+    return unarchiveEntry(normalized[0]);
+  }
+  return request<BulkActionResult>('/api/entries/unarchive', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ ids: normalized }),
   });
 }

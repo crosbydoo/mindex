@@ -37,6 +37,8 @@ export interface Pagination {
   limit: number;
   total: number;
   total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
 }
 
 export interface PaginatedEntries {
@@ -62,4 +64,26 @@ export interface FetchEntriesParams {
   limit?: number;
   category?: string;
   archived?: ArchivedFilter;
+}
+
+export interface LoginRequest {
+  password: string;
+}
+
+export interface LoginData {
+  token: string;
+}
+
+export interface HealthData {
+  status: 'ok';
+}
+
+/** Body for bulk archive / unarchive / delete. */
+export interface BulkIdsRequest {
+  ids: number[];
+}
+
+export interface BulkActionResult {
+  affected: number;
+  ids: number[];
 }

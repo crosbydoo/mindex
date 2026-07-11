@@ -449,7 +449,9 @@ function AdminJournals({
   onAdd,
   onUpdate,
   onArchive,
+  onArchiveMany,
   onDelete,
+  onDeleteMany,
   showToast,
 }: {
   entries: Entry[];
@@ -457,7 +459,9 @@ function AdminJournals({
   onAdd: (e: EntryInput) => Promise<void>;
   onUpdate: (e: Entry) => Promise<void>;
   onArchive: (id: number) => Promise<void>;
+  onArchiveMany: (ids: number[]) => Promise<number>;
   onDelete: (id: number) => Promise<void>;
+  onDeleteMany: (ids: number[]) => Promise<{ affected: number; ids: number[] }>;
   showToast: (msg: string, type?: 'success' | 'error') => void;
 }) {
   const [search, setSearch] = useState('');
@@ -516,34 +520,31 @@ function AdminJournals({
 
   const handleBulkArchive = async () => {
     const ids = [...selectedIds];
-    let ok = 0;
-    for (const id of ids) {
-      try {
-        await onArchive(id);
-        ok += 1;
-      } catch {
-        /* continue */
-      }
+    setBulkBusy(true);
+    try {
+      const ok = await onArchiveMany(ids);
+      setSelectedIds(new Set());
+      showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} archived`, ok ? 'success' : 'error');
+    } catch {
+      showToast('Failed to archive selected entries', 'error');
+    } finally {
+      setBulkBusy(false);
     }
-    setSelectedIds(new Set());
-    showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} archived`, ok ? 'success' : 'error');
   };
 
   const handleBulkDelete = async () => {
     const ids = [...selectedIds];
     setBulkBusy(true);
-    let ok = 0;
-    for (const id of ids) {
-      try {
-        await onDelete(id);
-        ok += 1;
-      } catch {
-        /* continue */
-      }
+    try {
+      const result = await onDeleteMany(ids);
+      setSelectedIds(new Set());
+      const ok = result.affected;
+      showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} deleted`, ok ? 'success' : 'error');
+    } catch {
+      showToast('Failed to delete selected entries', 'error');
+    } finally {
+      setBulkBusy(false);
     }
-    setSelectedIds(new Set());
-    setBulkBusy(false);
-    showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} deleted`, ok ? 'success' : 'error');
   };
 
   return (
@@ -593,10 +594,11 @@ function AdminJournals({
           <span className="text-sm font-medium mr-1">{selectedIds.size} selected</span>
           <button
             type="button"
+            disabled={bulkBusy}
             onClick={() => void handleBulkArchive()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg bg-card hover:bg-muted"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg bg-card hover:bg-muted disabled:opacity-50"
           >
-            <Archive size={14} /> Archive
+            <Archive size={14} /> {bulkBusy ? 'Working…' : 'Archive'}
           </button>
           <button
             type="button"
@@ -821,12 +823,16 @@ function AdminJournals({
 function AdminArchive({
   archived,
   onRestore,
+  onRestoreMany,
   onDeleteArchived,
+  onDeleteMany,
   showToast,
 }: {
   archived: Entry[];
   onRestore: (id: number) => Promise<void>;
+  onRestoreMany: (ids: number[]) => Promise<number>;
   onDeleteArchived: (id: number) => Promise<void>;
+  onDeleteMany: (ids: number[]) => Promise<{ affected: number; ids: number[] }>;
   showToast: (msg: string, type?: 'success' | 'error') => void;
 }) {
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
@@ -858,22 +864,37 @@ function AdminArchive({
             onClick={() => {
               void (async () => {
                 const ids = [...selectedIds];
-                let ok = 0;
-                for (const id of ids) {
-                  try {
-                    await onRestore(id);
-                    ok += 1;
-                  } catch {
-                    /* continue */
-                  }
+                try {
+                  const ok = await onRestoreMany(ids);
+                  setSelectedIds(new Set());
+                  showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} restored`, ok ? 'success' : 'error');
+                } catch {
+                  showToast('Failed to restore selected entries', 'error');
                 }
-                setSelectedIds(new Set());
-                showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} restored`, ok ? 'success' : 'error');
               })();
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg bg-card hover:bg-muted"
           >
             <RotateCcw size={14} /> Restore
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void (async () => {
+                const ids = [...selectedIds];
+                try {
+                  const result = await onDeleteMany(ids);
+                  setSelectedIds(new Set());
+                  const ok = result.affected;
+                  showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} deleted`, ok ? 'success' : 'error');
+                } catch {
+                  showToast('Failed to delete selected entries', 'error');
+                }
+              })();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-destructive/30 text-destructive rounded-lg bg-card hover:bg-[#fde8e8]"
+          >
+            <Trash2 size={14} /> Delete
           </button>
           <button type="button" onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground">
             Clear
@@ -1154,8 +1175,11 @@ function AdminDashboard({
   onAdd,
   onUpdate,
   onDelete,
+  onDeleteMany,
   onArchive,
+  onArchiveMany,
   onUnarchive,
+  onUnarchiveMany,
   onLogout,
 }: {
   entries: Entry[];
@@ -1163,8 +1187,11 @@ function AdminDashboard({
   onAdd: (e: EntryInput) => Promise<Entry | void>;
   onUpdate: (e: Entry) => Promise<Entry | void>;
   onDelete: (id: number) => Promise<void>;
+  onDeleteMany: (ids: number[]) => Promise<{ affected: number; ids: number[] }>;
   onArchive: (id: number) => Promise<Entry | void>;
+  onArchiveMany: (ids: number[]) => Promise<number>;
   onUnarchive: (id: number) => Promise<Entry | void>;
+  onUnarchiveMany: (ids: number[]) => Promise<number>;
   onLogout: () => void;
 }) {
   const [section, setSection] = useState<AdminSection>('overview');
@@ -1327,7 +1354,9 @@ function AdminDashboard({
               onArchive={async (id) => {
                 await handleArchive(id);
               }}
+              onArchiveMany={onArchiveMany}
               onDelete={onDelete}
+              onDeleteMany={onDeleteMany}
               showToast={showToast}
             />
           )}
@@ -1337,7 +1366,9 @@ function AdminDashboard({
               onRestore={async (id) => {
                 await handleRestore(id);
               }}
+              onRestoreMany={onUnarchiveMany}
               onDeleteArchived={handleDeleteArchived}
+              onDeleteMany={onDeleteMany}
               showToast={showToast}
             />
           )}
@@ -1385,8 +1416,11 @@ export function AdminPage({
   onAdd,
   onUpdate,
   onDelete,
+  onDeleteMany,
   onArchive,
+  onArchiveMany,
   onUnarchive,
+  onUnarchiveMany,
 }: {
   entries: Entry[];
   loading: boolean;
@@ -1394,8 +1428,11 @@ export function AdminPage({
   onAdd: (e: EntryInput) => Promise<Entry | void>;
   onUpdate: (e: Entry) => Promise<Entry | void>;
   onDelete: (id: number) => Promise<void>;
+  onDeleteMany: (ids: number[]) => Promise<{ affected: number; ids: number[] }>;
   onArchive: (id: number) => Promise<Entry | void>;
+  onArchiveMany: (ids: number[]) => Promise<number>;
   onUnarchive: (id: number) => Promise<Entry | void>;
+  onUnarchiveMany: (ids: number[]) => Promise<number>;
   onRefresh?: () => Promise<void>;
 }) {
   const [authed, setAuthed] = useState(() => isAdminAuthenticated());
@@ -1415,8 +1452,11 @@ export function AdminPage({
       onAdd={onAdd}
       onUpdate={onUpdate}
       onDelete={onDelete}
+      onDeleteMany={onDeleteMany}
       onArchive={onArchive}
+      onArchiveMany={onArchiveMany}
       onUnarchive={onUnarchive}
+      onUnarchiveMany={onUnarchiveMany}
       onLogout={() => setAuthed(false)}
     />
   ) : (

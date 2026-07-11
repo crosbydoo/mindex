@@ -1,13 +1,16 @@
 import seedEntries from '../../data/seed-entries.json';
 import {
+  archiveEntries as apiArchiveEntries,
   archiveEntry as apiArchiveEntry,
   createEntry as apiCreateEntry,
+  deleteEntries as apiDeleteEntries,
   deleteEntry as apiDeleteEntry,
   fetchEntries,
+  unarchiveEntries as apiUnarchiveEntries,
   unarchiveEntry as apiUnarchiveEntry,
   updateEntry as apiUpdateEntry,
 } from '@/lib/api';
-import type { Entry, EntryInput } from '@/lib/types';
+import type { BulkActionResult, Entry, EntryInput } from '@/lib/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const FALLBACK_ENTRIES: Entry[] = seedEntries.map((entry, index) => ({
@@ -34,7 +37,9 @@ async function fetchAll(archived: 'all' | 'false' | 'true' = 'all'): Promise<Ent
         is_archived: Boolean(item.is_archived),
       })),
     );
-    totalPages = result.pagination.total_pages || 1;
+    const pagination = result.pagination;
+    totalPages = pagination.total_pages || 1;
+    if (pagination.has_next === false) break;
     page += 1;
   } while (page <= totalPages);
 
@@ -50,8 +55,15 @@ function toEntryInput(entry: Entry | EntryInput): EntryInput {
     author: entry.author,
     source: entry.source,
     type: entry.type,
-    url: entry.url,
+    url: entry.url || '#',
   };
+}
+
+function bulkAffected(result: BulkActionResult | Entry, fallbackIds: number[]): number {
+  if (result && typeof result === 'object' && 'affected' in result) {
+    return result.affected;
+  }
+  return fallbackIds.length > 0 ? 1 : 0;
 }
 
 export function useEntries() {
@@ -114,7 +126,7 @@ export function useEntries() {
 
   const addEntry = useCallback(
     async (input: EntryInput) => {
-      const entry = await apiCreateEntry(input);
+      const entry = await apiCreateEntry(toEntryInput(input));
       await refresh();
       bumpRevision();
       return entry;
@@ -141,6 +153,16 @@ export function useEntries() {
     [refresh],
   );
 
+  const removeEntries = useCallback(
+    async (ids: number[]) => {
+      const result = await apiDeleteEntries(ids);
+      await refresh();
+      bumpRevision();
+      return result;
+    },
+    [refresh],
+  );
+
   const archiveEntry = useCallback(
     async (id: number) => {
       const entry = await apiArchiveEntry(id);
@@ -151,12 +173,32 @@ export function useEntries() {
     [refresh],
   );
 
+  const archiveEntries = useCallback(
+    async (ids: number[]) => {
+      const result = await apiArchiveEntries(ids);
+      await refresh();
+      bumpRevision();
+      return bulkAffected(result, ids);
+    },
+    [refresh],
+  );
+
   const unarchiveEntry = useCallback(
     async (id: number) => {
       const entry = await apiUnarchiveEntry(id);
       await refresh();
       bumpRevision();
       return entry;
+    },
+    [refresh],
+  );
+
+  const unarchiveEntries = useCallback(
+    async (ids: number[]) => {
+      const result = await apiUnarchiveEntries(ids);
+      await refresh();
+      bumpRevision();
+      return bulkAffected(result, ids);
     },
     [refresh],
   );
@@ -172,7 +214,10 @@ export function useEntries() {
     addEntry,
     updateEntry,
     deleteEntry: removeEntry,
+    deleteEntries: removeEntries,
     archiveEntry,
+    archiveEntries,
     unarchiveEntry,
+    unarchiveEntries,
   };
 }
