@@ -746,7 +746,7 @@ function AboutPage() {
 export default function App() {
   const [activePage, setActivePage] = useState<Page>("home");
   const [preselectedCategory, setPreselectedCategory] = useState<Category | undefined>();
-  const { entries, loading } = useEntries();
+  const { activeEntries, loading } = useEntries();
 
   const handleNav = (p: Page, cat?: Category) => {
     setActivePage(p);
@@ -762,12 +762,12 @@ export default function App() {
         <HomePage
           key={preselectedCategory}
           onNav={handleNav}
-          entries={entries}
+          entries={activeEntries}
           entriesLoading={loading}
         />
       )}
       {activePage === "categories" && (
-        <CategoriesPage onNav={handleNav} entries={entries} entriesLoading={loading} />
+        <CategoriesPage onNav={handleNav} entries={activeEntries} entriesLoading={loading} />
       )}
       {activePage === "about" && <AboutPage />}
 

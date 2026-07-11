@@ -1,22 +1,58 @@
 import seedEntries from '../../data/seed-entries.json';
 import {
+  archiveEntry as apiArchiveEntry,
   createEntry as apiCreateEntry,
   deleteEntry as apiDeleteEntry,
   fetchEntries,
+  unarchiveEntry as apiUnarchiveEntry,
   updateEntry as apiUpdateEntry,
 } from '@/lib/api';
 import type { Entry, EntryInput } from '@/lib/types';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const FALLBACK_ENTRIES: Entry[] = seedEntries.map((entry, index) => ({
   ...entry,
   category: entry.category as Entry['category'],
   type: entry.type as Entry['type'],
   id: index + 1,
+  is_archived: false,
 }));
 
 /** Max page size allowed by the API. */
 const LIST_LIMIT = 100;
+
+async function fetchAll(archived: 'all' | 'false' | 'true' = 'all'): Promise<Entry[]> {
+  const all: Entry[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const result = await fetchEntries({ page, limit: LIST_LIMIT, archived });
+    all.push(
+      ...result.items.map((item) => ({
+        ...item,
+        is_archived: Boolean(item.is_archived),
+      })),
+    );
+    totalPages = result.pagination.total_pages || 1;
+    page += 1;
+  } while (page <= totalPages);
+
+  return all;
+}
+
+function toEntryInput(entry: Entry | EntryInput): EntryInput {
+  return {
+    title: entry.title,
+    abstract: entry.abstract,
+    category: entry.category,
+    year: entry.year,
+    author: entry.author,
+    source: entry.source,
+    type: entry.type,
+    url: entry.url,
+  };
+}
 
 export function useEntries() {
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -29,17 +65,7 @@ export function useEntries() {
     setError(null);
 
     try {
-      const all: Entry[] = [];
-      let page = 1;
-      let totalPages = 1;
-
-      do {
-        const result = await fetchEntries({ page, limit: LIST_LIMIT });
-        all.push(...result.items);
-        totalPages = result.pagination.total_pages || 1;
-        page += 1;
-      } while (page <= totalPages);
-
+      const all = await fetchAll('all');
       setEntries(all);
       setUsingLocalFallback(false);
     } catch (err) {
@@ -55,7 +81,6 @@ export function useEntries() {
     void refresh();
   }, [refresh]);
 
-  // Keep lists in sync across tabs after admin mutations
   useEffect(() => {
     const onFocus = () => {
       void refresh();
@@ -77,29 +102,69 @@ export function useEntries() {
     localStorage.setItem('mindex_entries_revision', String(Date.now()));
   };
 
-  const addEntry = useCallback(async (input: EntryInput) => {
-    const entry = await apiCreateEntry(input);
-    await refresh();
-    bumpRevision();
-    return entry;
-  }, [refresh]);
+  const activeEntries = useMemo(
+    () => entries.filter((e) => !e.is_archived),
+    [entries],
+  );
 
-  const updateEntry = useCallback(async (updated: Entry) => {
-    const { id, ...input } = updated;
-    const entry = await apiUpdateEntry(id, input);
-    await refresh();
-    bumpRevision();
-    return entry;
-  }, [refresh]);
+  const archivedEntries = useMemo(
+    () => entries.filter((e) => e.is_archived),
+    [entries],
+  );
 
-  const removeEntry = useCallback(async (id: number) => {
-    await apiDeleteEntry(id);
-    await refresh();
-    bumpRevision();
-  }, [refresh]);
+  const addEntry = useCallback(
+    async (input: EntryInput) => {
+      const entry = await apiCreateEntry(input);
+      await refresh();
+      bumpRevision();
+      return entry;
+    },
+    [refresh],
+  );
+
+  const updateEntry = useCallback(
+    async (updated: Entry) => {
+      const entry = await apiUpdateEntry(updated.id, toEntryInput(updated));
+      await refresh();
+      bumpRevision();
+      return entry;
+    },
+    [refresh],
+  );
+
+  const removeEntry = useCallback(
+    async (id: number) => {
+      await apiDeleteEntry(id);
+      await refresh();
+      bumpRevision();
+    },
+    [refresh],
+  );
+
+  const archiveEntry = useCallback(
+    async (id: number) => {
+      const entry = await apiArchiveEntry(id);
+      await refresh();
+      bumpRevision();
+      return entry;
+    },
+    [refresh],
+  );
+
+  const unarchiveEntry = useCallback(
+    async (id: number) => {
+      const entry = await apiUnarchiveEntry(id);
+      await refresh();
+      bumpRevision();
+      return entry;
+    },
+    [refresh],
+  );
 
   return {
     entries,
+    activeEntries,
+    archivedEntries,
     loading,
     error,
     usingLocalFallback,
@@ -107,5 +172,7 @@ export function useEntries() {
     addEntry,
     updateEntry,
     deleteEntry: removeEntry,
+    archiveEntry,
+    unarchiveEntry,
   };
 }

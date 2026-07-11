@@ -1,8 +1,6 @@
 # API Endpoints
 
-Base URL: `https://mindex-api.duckdns.org`
-
-Local (optional): `http://localhost:8080`
+Base URL (local): `http://localhost:8080`
 
 All JSON responses use `Content-Type: application/json` and this envelope:
 
@@ -25,13 +23,15 @@ All JSON responses use `Content-Type: application/json` and this envelope:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/health` | No | Health check |
-| `GET` | `/api/entries` | No | List entries (paginated, optional category) |
+| `GET` | `/api/entries` | No | List entries (paginated; optional category / archived) |
 | `GET` | `/api/categories` | No | All categories with paginated entries each |
 | `POST` | `/api/login` | No | Admin login |
 | `POST` | `/api/logout` | No | Logout |
 | `POST` | `/api/entries` | Bearer | Create entry |
 | `PUT` | `/api/entries?id={id}` | Bearer | Update entry |
-| `DELETE` | `/api/entries?id={id}` | Bearer | Delete entry |
+| `DELETE` | `/api/entries?id={id}` | Bearer | Delete entry permanently |
+| `POST` | `/api/entries/archive?id={id}` | Bearer | Archive entry |
+| `POST` | `/api/entries/unarchive?id={id}` | Bearer | Unarchive entry |
 
 **Protected routes** require header:
 
@@ -39,7 +39,7 @@ All JSON responses use `Content-Type: application/json` and this envelope:
 Authorization: Bearer <token>
 ```
 
-See request/response models in this document and the TypeScript types in `src/lib/types.ts`.
+See request/response models: **[api-models.md](./api-models.md)**
 
 ---
 
@@ -47,8 +47,8 @@ See request/response models in this document and the TypeScript types in `src/li
 
 | Access | Endpoints |
 |--------|-----------|
-| Public | `GET /health`, `GET /api/entries`, `POST /api/login`, `POST /api/logout` |
-| Protected | `POST /api/entries`, `PUT /api/entries`, `DELETE /api/entries` |
+| Public | `GET /health`, `GET /api/entries`, `GET /api/categories`, `POST /api/login`, `POST /api/logout` |
+| Protected | `POST /api/entries`, `PUT /api/entries`, `DELETE /api/entries`, `POST /api/entries/archive`, `POST /api/entries/unarchive` |
 
 Token algorithm:
 
@@ -69,7 +69,7 @@ Health check.
 No body. No auth.
 
 ```bash
-curl https://mindex-api.duckdns.org/health
+curl http://localhost:8080/health
 ```
 
 ### Response
@@ -91,12 +91,15 @@ List psychology literature entries with pagination. **Public.**
 | `page` | number | `1` | Page number (>= 1) |
 | `limit` | number | `10` | Items per page (max 100) |
 | `category` | string | — | Optional category filter |
+| `archived` | string | `false` | `false` / `active` = active only; `true` / `archived` = archived only; `all` = both |
 
 ### Request
 
 ```bash
-curl "https://mindex-api.duckdns.org/api/entries?page=1&limit=10"
-curl "https://mindex-api.duckdns.org/api/entries?page=1&limit=5&category=Clinical%20Psychology"
+curl "http://localhost:8080/api/entries?page=1&limit=10"
+curl "http://localhost:8080/api/entries?page=1&limit=5&category=Clinical%20Psychology"
+curl "http://localhost:8080/api/entries?archived=true"
+curl "http://localhost:8080/api/entries?archived=all"
 ```
 
 ### Response
@@ -104,13 +107,15 @@ curl "https://mindex-api.duckdns.org/api/entries?page=1&limit=5&category=Clinica
 | Status | Body |
 |--------|------|
 | `200` | Envelope with `data.items` + `data.pagination` |
-| `400` | Invalid pagination / category |
+| `400` | Invalid pagination / category / archived filter |
 | `500` | Envelope error |
 
 ### Notes
 
 - Ordered by `year DESC, id DESC`.
+- Default list excludes archived entries (`is_archived = false`).
 - Returns empty `items: []` when no matches.
+- Each item includes `is_archived`.
 
 ---
 
@@ -124,11 +129,13 @@ List **every category**, each with its own paginated entries. **Public.**
 |-------|------|---------|-------------|
 | `page` | number | `1` | Page number applied **per category** |
 | `limit` | number | `10` | Items per category page (max 100) |
+| `archived` | string | `false` | Same filter as `GET /api/entries` |
 
 ### Request
 
 ```bash
-curl "https://mindex-api.duckdns.org/api/categories?page=1&limit=5"
+curl "http://localhost:8080/api/categories?page=1&limit=5"
+curl "http://localhost:8080/api/categories?archived=true"
 ```
 
 ### Response
@@ -136,7 +143,7 @@ curl "https://mindex-api.duckdns.org/api/categories?page=1&limit=5"
 | Status | Body |
 |--------|------|
 | `200` | Envelope with `data.categories[]` (each has `category`, `items`, `pagination`) |
-| `400` | Invalid pagination |
+| `400` | Invalid pagination / archived filter |
 | `500` | Envelope error |
 
 ---
@@ -148,7 +155,7 @@ Authenticate admin and receive bearer token.
 ### Request
 
 ```bash
-curl -X POST https://mindex-api.duckdns.org/api/login \
+curl -X POST http://localhost:8080/api/login \
   -H "Content-Type: application/json" \
   -d '{"password":"admin123"}'
 ```
@@ -157,7 +164,7 @@ curl -X POST https://mindex-api.duckdns.org/api/login \
 |--------|-------|
 | `Content-Type` | `application/json` |
 
-Body: `LoginRequest` — `{ "password": "string" }`
+Body: `LoginRequest` — see [api-models.md](./api-models.md)
 
 ### Response
 
@@ -179,7 +186,7 @@ Logout. **Public** (client clears token locally).
 ### Request
 
 ```bash
-curl -X POST https://mindex-api.duckdns.org/api/logout
+curl -X POST http://localhost:8080/api/logout
 ```
 
 No body required.
@@ -205,7 +212,7 @@ Create a new entry. **Auth required.**
 ### Request
 
 ```bash
-curl -X POST https://mindex-api.duckdns.org/api/entries \
+curl -X POST http://localhost:8080/api/entries \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{
@@ -225,7 +232,7 @@ curl -X POST https://mindex-api.duckdns.org/api/entries \
 | `Content-Type` | `application/json` |
 | `Authorization` | `Bearer <token>` |
 
-Body: `EntryInput` — `{ title, abstract, category, year, author, source, type, url }`
+Body: `EntryInput` — see [api-models.md](./api-models.md)
 
 ### Response
 
@@ -245,7 +252,7 @@ Update an existing entry. **Auth required.**
 ### Request
 
 ```bash
-curl -X PUT "https://mindex-api.duckdns.org/api/entries?id=1" \
+curl -X PUT "http://localhost:8080/api/entries?id=1" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{
@@ -282,12 +289,12 @@ Body: `EntryInput` — same as create.
 
 ## `DELETE /api/entries?id={id}`
 
-Delete an entry. **Auth required.**
+Permanently delete an entry. **Auth required.** Prefer archive when you want to hide without deleting.
 
 ### Request
 
 ```bash
-curl -X DELETE "https://mindex-api.duckdns.org/api/entries?id=1" \
+curl -X DELETE "http://localhost:8080/api/entries?id=1" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -307,60 +314,113 @@ curl -X DELETE "https://mindex-api.duckdns.org/api/entries?id=1" \
 
 ---
 
+## `POST /api/entries/archive?id={id}`
+
+Archive an entry (`is_archived = true`). Archived entries are hidden from the default list. **Auth required.**
+
+### Request
+
+```bash
+curl -X POST "http://localhost:8080/api/entries/archive?id=1" \
+  -H "Authorization: Bearer <token>"
+```
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | query | yes | Positive integer entry ID |
+
+No body.
+
+### Response
+
+| Status | Body |
+|--------|------|
+| `200` | Envelope with archived `Entry` in `data` (`is_archived: true`) |
+| `400` | Envelope error — Invalid entry id |
+| `401` | Envelope error — Unauthorized |
+| `404` | Envelope error — Entry not found |
+| `500` | Envelope error |
+
+---
+
+## `POST /api/entries/unarchive?id={id}`
+
+Restore an archived entry (`is_archived = false`). **Auth required.**
+
+### Request
+
+```bash
+curl -X POST "http://localhost:8080/api/entries/unarchive?id=1" \
+  -H "Authorization: Bearer <token>"
+```
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | query | yes | Positive integer entry ID |
+
+No body.
+
+### Response
+
+| Status | Body |
+|--------|------|
+| `200` | Envelope with restored `Entry` in `data` (`is_archived: false`) |
+| `400` | Envelope error — Invalid entry id |
+| `401` | Envelope error — Unauthorized |
+| `404` | Envelope error — Entry not found |
+| `500` | Envelope error |
+
+---
+
 ## Full workflow (curl)
 
 ```bash
 # 1. Health
-curl https://mindex-api.duckdns.org/health
+curl http://localhost:8080/health
 
-# 2. List (public)
-curl https://mindex-api.duckdns.org/api/entries
+# 2. List active (public)
+curl "http://localhost:8080/api/entries?page=1&limit=10"
 
 # 3. Login
-TOKEN=$(curl -s -X POST https://mindex-api.duckdns.org/api/login \
+TOKEN=$(curl -s -X POST http://localhost:8080/api/login \
   -H "Content-Type: application/json" \
   -d '{"password":"admin123"}' | jq -r '.data.token')
 
 # 4. Create
-curl -X POST https://mindex-api.duckdns.org/api/entries \
+curl -X POST http://localhost:8080/api/entries \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "title": "Test Entry",
-    "abstract": "Abstract text",
-    "category": "Clinical Psychology",
-    "year": 2024,
-    "author": "Jane Doe",
-    "source": "Test Journal",
-    "type": "Journal",
-    "url": "https://example.com"
-  }'
+  -d @docs/mocks/entry-create-request.json
 
 # 5. Update
-curl -X PUT "https://mindex-api.duckdns.org/api/entries?id=1" \
+curl -X PUT "http://localhost:8080/api/entries?id=1" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "title": "Updated Entry",
-    "abstract": "Updated abstract",
-    "category": "Clinical Psychology",
-    "year": 2024,
-    "author": "Jane Doe",
-    "source": "Test Journal",
-    "type": "Journal",
-    "url": "https://example.com"
-  }'
+  -d @docs/mocks/entry-update-request.json
 
-# 6. Delete
-curl -X DELETE "https://mindex-api.duckdns.org/api/entries?id=1" \
+# 6. Archive
+curl -X POST "http://localhost:8080/api/entries/archive?id=1" \
   -H "Authorization: Bearer $TOKEN"
 
-# 7. Logout
-curl -X POST https://mindex-api.duckdns.org/api/logout
+# 7. List archived
+curl "http://localhost:8080/api/entries?archived=true"
+
+# 8. Unarchive
+curl -X POST "http://localhost:8080/api/entries/unarchive?id=1" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 9. Delete permanently
+curl -X DELETE "http://localhost:8080/api/entries?id=1" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 10. Logout
+curl -X POST http://localhost:8080/api/logout
 ```
 
 ---
 
 ## Related docs
 
+- [API Models & Mock Data](./api-models.md)
+- [Deployment](./deployment.md)
 - [Project README](../README.md)

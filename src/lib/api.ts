@@ -13,7 +13,6 @@ const API_BASE = (
   (import.meta.env.DEV ? '' : 'https://mindex-api.duckdns.org')
 ).replace(/\/$/, '');
 
-
 function apiUrl(path: string): string {
   return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
 }
@@ -63,6 +62,9 @@ export async function fetchEntries(
   if (params.category) {
     search.set('category', params.category);
   }
+  if (params.archived) {
+    search.set('archived', params.archived);
+  }
 
   return request<PaginatedEntries>(`/api/entries?${search.toString()}`);
 }
@@ -70,10 +72,14 @@ export async function fetchEntries(
 export async function fetchCategories(params: {
   page?: number;
   limit?: number;
+  archived?: FetchEntriesParams['archived'];
 } = {}): Promise<CategoriesResponse> {
   const search = new URLSearchParams();
   search.set('page', String(params.page ?? 1));
   search.set('limit', String(params.limit ?? 10));
+  if (params.archived) {
+    search.set('archived', params.archived);
+  }
 
   return request<CategoriesResponse>(`/api/categories?${search.toString()}`);
 }
@@ -109,6 +115,20 @@ export async function updateEntry(id: number, input: EntryInput): Promise<Entry>
 export async function deleteEntry(id: number): Promise<void> {
   await request<null>(`/api/entries?id=${id}`, {
     method: 'DELETE',
+    headers: authHeaders(),
+  });
+}
+
+export async function archiveEntry(id: number): Promise<Entry> {
+  return request<Entry>(`/api/entries/archive?id=${id}`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+}
+
+export async function unarchiveEntry(id: number): Promise<Entry> {
+  return request<Entry>(`/api/entries/unarchive?id=${id}`, {
+    method: 'POST',
     headers: authHeaders(),
   });
 }

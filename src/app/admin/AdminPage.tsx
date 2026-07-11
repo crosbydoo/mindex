@@ -25,12 +25,6 @@ import {
   CATEGORY_META,
   TYPES,
 } from '@/app/catalog';
-import {
-  archiveEntries,
-  getArchivedIds,
-  removeArchivedIds,
-  restoreEntries,
-} from '@/lib/archive';
 import { loginAdmin, logoutAdmin } from '@/lib/api';
 import {
   clearAdminToken,
@@ -462,7 +456,7 @@ function AdminJournals({
   allCategories: string[];
   onAdd: (e: EntryInput) => Promise<void>;
   onUpdate: (e: Entry) => Promise<void>;
-  onArchive: (id: number) => void;
+  onArchive: (id: number) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   showToast: (msg: string, type?: 'success' | 'error') => void;
 }) {
@@ -520,11 +514,19 @@ function AdminJournals({
     });
   };
 
-  const handleBulkArchive = () => {
+  const handleBulkArchive = async () => {
     const ids = [...selectedIds];
-    ids.forEach((id) => onArchive(id));
+    let ok = 0;
+    for (const id of ids) {
+      try {
+        await onArchive(id);
+        ok += 1;
+      } catch {
+        /* continue */
+      }
+    }
     setSelectedIds(new Set());
-    showToast(`${ids.length} entr${ids.length === 1 ? 'y' : 'ies'} archived`);
+    showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} archived`, ok ? 'success' : 'error');
   };
 
   const handleBulkDelete = async () => {
@@ -591,7 +593,7 @@ function AdminJournals({
           <span className="text-sm font-medium mr-1">{selectedIds.size} selected</span>
           <button
             type="button"
-            onClick={handleBulkArchive}
+            onClick={() => void handleBulkArchive()}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg bg-card hover:bg-muted"
           >
             <Archive size={14} /> Archive
@@ -771,7 +773,7 @@ function AdminJournals({
                 Archive this entry?
               </h3>
               <p className="text-sm text-muted-foreground">
-                It will be moved to Archive. You can restore it later from this browser.
+                It will be archived on the server and hidden from the default public list.
               </p>
             </div>
             <div className="flex justify-end gap-3">
@@ -783,9 +785,12 @@ function AdminJournals({
               </button>
               <button
                 onClick={() => {
-                  onArchive(archiveTarget.id);
-                  setArchiveTarget(null);
-                  showToast('Entry archived');
+                  void onArchive(archiveTarget.id)
+                    .then(() => {
+                      setArchiveTarget(null);
+                      showToast('Entry archived');
+                    })
+                    .catch(() => showToast('Failed to archive entry', 'error'));
                 }}
                 className="px-4 py-2 text-sm bg-[#b45309] text-white rounded-lg hover:bg-[#92400e] transition-colors flex items-center gap-1.5"
               >
@@ -820,7 +825,7 @@ function AdminArchive({
   showToast,
 }: {
   archived: Entry[];
-  onRestore: (id: number) => void;
+  onRestore: (id: number) => Promise<void>;
   onDeleteArchived: (id: number) => Promise<void>;
   showToast: (msg: string, type?: 'success' | 'error') => void;
 }) {
@@ -837,7 +842,7 @@ function AdminArchive({
             Archive
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Archived entries are stored on this browser. Restore to show them in Active again.
+            Archived entries are hidden from the public list. Restore to make them active again.
           </p>
         </div>
         <span className="text-xs font-mono text-muted-foreground bg-muted px-3 py-1 rounded-full">
@@ -851,9 +856,20 @@ function AdminArchive({
           <button
             type="button"
             onClick={() => {
-              [...selectedIds].forEach((id) => onRestore(id));
-              setSelectedIds(new Set());
-              showToast('Entries restored');
+              void (async () => {
+                const ids = [...selectedIds];
+                let ok = 0;
+                for (const id of ids) {
+                  try {
+                    await onRestore(id);
+                    ok += 1;
+                  } catch {
+                    /* continue */
+                  }
+                }
+                setSelectedIds(new Set());
+                showToast(`${ok} entr${ok === 1 ? 'y' : 'ies'} restored`, ok ? 'success' : 'error');
+              })();
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg bg-card hover:bg-muted"
           >
@@ -942,8 +958,9 @@ function AdminArchive({
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => {
-                            onRestore(entry.id);
-                            showToast('Entry restored');
+                            void onRestore(entry.id)
+                              .then(() => showToast('Entry restored'))
+                              .catch(() => showToast('Failed to restore entry', 'error'));
                           }}
                           title="Restore"
                           className="p-1.5 text-muted-foreground hover:text-accent hover:bg-[#ddf0e5] rounded transition-colors"
@@ -1137,6 +1154,8 @@ function AdminDashboard({
   onAdd,
   onUpdate,
   onDelete,
+  onArchive,
+  onUnarchive,
   onLogout,
 }: {
   entries: Entry[];
@@ -1144,10 +1163,11 @@ function AdminDashboard({
   onAdd: (e: EntryInput) => Promise<Entry | void>;
   onUpdate: (e: Entry) => Promise<Entry | void>;
   onDelete: (id: number) => Promise<void>;
+  onArchive: (id: number) => Promise<Entry | void>;
+  onUnarchive: (id: number) => Promise<Entry | void>;
   onLogout: () => void;
 }) {
   const [section, setSection] = useState<AdminSection>('overview');
-  const [archivedIds, setArchivedIds] = useState<number[]>(() => getArchivedIds());
   const [customCategories, setCustomCategories] = useState<string[]>(() => getCustomCategories());
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1157,33 +1177,26 @@ function AdminDashboard({
     setTimeout(() => setToast(null), 3000);
   };
 
-  const archivedSet = useMemo(() => new Set(archivedIds), [archivedIds]);
   const activeEntries = useMemo(
-    () => entries.filter((e) => !archivedSet.has(e.id)),
-    [entries, archivedSet],
+    () => entries.filter((e) => !e.is_archived),
+    [entries],
   );
   const archivedEntries = useMemo(
-    () => entries.filter((e) => archivedSet.has(e.id)),
-    [entries, archivedSet],
+    () => entries.filter((e) => e.is_archived),
+    [entries],
   );
   const allCategories = [...CATEGORIES, ...customCategories];
 
-  const syncArchive = () => setArchivedIds(getArchivedIds());
-
-  const handleArchive = (id: number) => {
-    archiveEntries([id]);
-    syncArchive();
+  const handleArchive = async (id: number) => {
+    await onArchive(id);
   };
 
-  const handleRestore = (id: number) => {
-    restoreEntries([id]);
-    syncArchive();
+  const handleRestore = async (id: number) => {
+    await onUnarchive(id);
   };
 
   const handleDeleteArchived = async (id: number) => {
     await onDelete(id);
-    removeArchivedIds([id]);
-    syncArchive();
   };
 
   const handleLogout = () => {
@@ -1311,7 +1324,9 @@ function AdminDashboard({
               onUpdate={async (entry) => {
                 await onUpdate(entry);
               }}
-              onArchive={handleArchive}
+              onArchive={async (id) => {
+                await handleArchive(id);
+              }}
               onDelete={onDelete}
               showToast={showToast}
             />
@@ -1319,7 +1334,9 @@ function AdminDashboard({
           {section === 'archive' && (
             <AdminArchive
               archived={archivedEntries}
-              onRestore={handleRestore}
+              onRestore={async (id) => {
+                await handleRestore(id);
+              }}
               onDeleteArchived={handleDeleteArchived}
               showToast={showToast}
             />
@@ -1368,6 +1385,8 @@ export function AdminPage({
   onAdd,
   onUpdate,
   onDelete,
+  onArchive,
+  onUnarchive,
 }: {
   entries: Entry[];
   loading: boolean;
@@ -1375,6 +1394,8 @@ export function AdminPage({
   onAdd: (e: EntryInput) => Promise<Entry | void>;
   onUpdate: (e: Entry) => Promise<Entry | void>;
   onDelete: (id: number) => Promise<void>;
+  onArchive: (id: number) => Promise<Entry | void>;
+  onUnarchive: (id: number) => Promise<Entry | void>;
   onRefresh?: () => Promise<void>;
 }) {
   const [authed, setAuthed] = useState(() => isAdminAuthenticated());
@@ -1394,6 +1415,8 @@ export function AdminPage({
       onAdd={onAdd}
       onUpdate={onUpdate}
       onDelete={onDelete}
+      onArchive={onArchive}
+      onUnarchive={onUnarchive}
       onLogout={() => setAuthed(false)}
     />
   ) : (

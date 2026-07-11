@@ -19,9 +19,10 @@ export interface Entry {
   source: string;
   type: EntryType;
   url: string;
+  is_archived: boolean;
 }
 
-export type EntryInput = Omit<Entry, 'id'>;
+export type EntryInput = Omit<Entry, 'id' | 'is_archived'>;
 
 /** Standard API response envelope from the Go backend. */
 export interface ApiEnvelope<T> {
@@ -53,8 +54,12 @@ export interface CategoriesResponse {
   categories: CategoryEntries[];
 }
 
+/** API archived query: active only, archived only, or both. */
+export type ArchivedFilter = 'false' | 'true' | 'all' | 'active' | 'archived';
+
 export interface FetchEntriesParams {
   page?: number;
   limit?: number;
   category?: string;
+  archived?: ArchivedFilter;
 }
