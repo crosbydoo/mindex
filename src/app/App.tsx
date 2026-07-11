@@ -31,10 +31,10 @@ import {
   X
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
-import { useEntries } from "../hooks/useEntries";
-import { loginAdmin } from "../lib/api";
-import { clearAdminToken, setAdminToken } from "../lib/auth";
-import type { Category, Entry, EntryInput, EntryType } from "../lib/types";
+import { useEntries } from "@/hooks/useEntries";
+import { loginAdmin, logoutAdmin } from "@/lib/api";
+import { clearAdminToken, setAdminToken } from "@/lib/auth";
+import type { Category, Entry, EntryInput, EntryType } from "@/lib/types";
 
 function PsiIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
   return (
@@ -596,7 +596,7 @@ function AdminDashboard({
       }
       setShowModal(null);
     } catch {
-      showToast(usingLocalFallback ? "Database unavailable — start vercel dev" : "Failed to save entry", "error");
+      showToast(usingLocalFallback ? "API unavailable — start the Go server on :8080" : "Failed to save entry", "error");
     }
   };
 
@@ -606,7 +606,7 @@ function AdminDashboard({
       setDeleteTarget(null);
       showToast("Entry deleted", "error");
     } catch {
-      showToast(usingLocalFallback ? "Database unavailable — start vercel dev" : "Failed to delete entry", "error");
+      showToast(usingLocalFallback ? "API unavailable — start the Go server on :8080" : "Failed to delete entry", "error");
     }
   };
 
@@ -626,7 +626,15 @@ function AdminDashboard({
             className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/85 transition-colors">
             <Plus size={15} /> Add Entry
           </button>
-          <button onClick={() => { clearAdminToken(); onLogout(); }}
+          <button
+            onClick={() => {
+              void logoutAdmin()
+                .catch(() => undefined)
+                .finally(() => {
+                  clearAdminToken();
+                  onLogout();
+                });
+            }}
             className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-colors">
             <LogOut size={14} /> Sign out
           </button>
@@ -635,7 +643,8 @@ function AdminDashboard({
 
       {usingLocalFallback && (
         <p className="mb-6 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-          Database API is offline. Run <code className="font-mono">vercel dev</code> locally or deploy with Vercel Postgres connected.
+          API is offline. Check the backend at <code className="font-mono">https://mindex-api.duckdns.org</code> or set{" "}
+          <code className="font-mono">VITE_API_BASE_URL</code>.
         </p>
       )}
 
@@ -1217,10 +1226,10 @@ export function AdminPage({
   entries: Entry[];
   loading: boolean;
   usingLocalFallback: boolean;
-  onAdd: (e: EntryInput) => Promise<void>;
-  onUpdate: (e: Entry) => Promise<void>;
+  onAdd: (e: EntryInput) => Promise<Entry | void>;
+  onUpdate: (e: Entry) => Promise<Entry | void>;
   onDelete: (id: number) => Promise<void>;
-  onRefresh: () => Promise<void>;
+  onRefresh?: () => Promise<void>;
 }) {
   const [authed, setAuthed] = useState(false);
 

@@ -4,14 +4,19 @@ import {
   deleteEntry as apiDeleteEntry,
   fetchEntries,
   updateEntry as apiUpdateEntry,
-} from '../lib/api';
-import type { Entry, EntryInput } from '../lib/types';
+} from '@/lib/api';
+import type { Entry, EntryInput } from '@/lib/types';
 import { useCallback, useEffect, useState } from 'react';
 
 const FALLBACK_ENTRIES: Entry[] = seedEntries.map((entry, index) => ({
   ...entry,
+  category: entry.category as Entry['category'],
+  type: entry.type as Entry['type'],
   id: index + 1,
 }));
+
+/** Max page size allowed by the API. */
+const LIST_LIMIT = 100;
 
 export function useEntries() {
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -24,8 +29,18 @@ export function useEntries() {
     setError(null);
 
     try {
-      const data = await fetchEntries();
-      setEntries(data);
+      const all: Entry[] = [];
+      let page = 1;
+      let totalPages = 1;
+
+      do {
+        const result = await fetchEntries({ page, limit: LIST_LIMIT });
+        all.push(...result.items);
+        totalPages = result.pagination.total_pages || 1;
+        page += 1;
+      } while (page <= totalPages);
+
+      setEntries(all);
       setUsingLocalFallback(false);
     } catch (err) {
       setEntries(FALLBACK_ENTRIES);

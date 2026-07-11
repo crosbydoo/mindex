@@ -1,8 +1,24 @@
-import type { Entry, EntryInput } from './types';
+import type {
+  ApiEnvelope,
+  CategoriesResponse,
+  Entry,
+  EntryInput,
+  FetchEntriesParams,
+  PaginatedEntries,
+} from './types';
 import { getAdminToken } from './auth';
 
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL ?? 'https://mindex-api.duckdns.org'
+).replace(/\/$/, '');
+
+
+function apiUrl(path: string): string {
+  return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     headers: {
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
@@ -10,17 +26,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
 
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    const message = typeof body.error === 'string' ? body.error : response.statusText;
-    throw new Error(message || 'Request failed');
+  const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+
+  if (!body || typeof body !== 'object') {
+    throw new Error(response.statusText || 'Request failed');
   }
 
-  if (response.status === 204) {
-    return undefined as T;
+  if (!response.ok || body.status === false) {
+    throw new Error(body.message || response.statusText || 'Request failed');
   }
 
-  return response.json() as Promise<T>;
+  return body.data;
 }
 
 function authHeaders(): HeadersInit {
@@ -32,16 +48,44 @@ function authHeaders(): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 
-export async function fetchEntries(): Promise<Entry[]> {
-  return request<Entry[]>('/api/entries');
+export async function checkHealth(): Promise<{ status: string }> {
+  return request<{ status: string }>('/health');
+}
+
+export async function fetchEntries(
+  params: FetchEntriesParams = {},
+): Promise<PaginatedEntries> {
+  const search = new URLSearchParams();
+  search.set('page', String(params.page ?? 1));
+  search.set('limit', String(params.limit ?? 100));
+  if (params.category) {
+    search.set('category', params.category);
+  }
+
+  return request<PaginatedEntries>(`/api/entries?${search.toString()}`);
+}
+
+export async function fetchCategories(params: {
+  page?: number;
+  limit?: number;
+} = {}): Promise<CategoriesResponse> {
+  const search = new URLSearchParams();
+  search.set('page', String(params.page ?? 1));
+  search.set('limit', String(params.limit ?? 10));
+
+  return request<CategoriesResponse>(`/api/categories?${search.toString()}`);
 }
 
 export async function loginAdmin(password: string): Promise<string> {
-  const { token } = await request<{ token: string }>('/api/login', {
+  const data = await request<{ token: string }>('/api/login', {
     method: 'POST',
     body: JSON.stringify({ password }),
   });
-  return token;
+  return data.token;
+}
+
+export async function logoutAdmin(): Promise<void> {
+  await request<null>('/api/logout', { method: 'POST' });
 }
 
 export async function createEntry(input: EntryInput): Promise<Entry> {
@@ -61,7 +105,7 @@ export async function updateEntry(id: number, input: EntryInput): Promise<Entry>
 }
 
 export async function deleteEntry(id: number): Promise<void> {
-  await request<void>(`/api/entries?id=${id}`, {
+  await request<null>(`/api/entries?id=${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });

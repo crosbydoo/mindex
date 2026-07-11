@@ -6,10 +6,6 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite --port 3005",
-    "dev:full": "vercel dev --listen 3005",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
-    "db:logs": "docker compose logs -f postgres",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
@@ -17,7 +13,6 @@
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "9.2.0",
     "@mui/material": "9.2.0",
-    "@neondatabase/serverless": "1.0.2",
     "@popperjs/core": "2.11.8",
     "@radix-ui/react-accordion": "1.2.16",
     "@radix-ui/react-alert-dialog": "1.1.19",
@@ -45,7 +40,6 @@
     "@radix-ui/react-toggle": "1.1.14",
     "@radix-ui/react-toggle-group": "1.1.15",
     "@radix-ui/react-tooltip": "1.2.12",
-    "@vercel/node": "5.3.0",
     "canvas-confetti": "1.9.4",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",

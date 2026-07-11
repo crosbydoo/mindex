@@ -4,11 +4,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "functions": {
-    "api/**/*.ts": {
-      "maxDuration": 10
-    }
-  },
   "headers": [
     {
       "source": "/sw.js",
@@ -26,7 +21,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api/|sw\\.js|workbox-.*\\.js|manifest\\.webmanifest|.*\\.(?:js|css|png|svg|ico|woff2?|webmanifest)$).*)",
+      "source": "/((?!sw\\.js|manifest\\.webmanifest|.*\\.(?:js|css|png|svg|ico|woff2?|webmanifest)$).*)",
       "destination": "/index.html"
     }
   ]

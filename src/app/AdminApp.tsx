@@ -1,4 +1,4 @@
-import { useEntries } from '../hooks/useEntries';
+import { useEntries } from '@/hooks/useEntries';
 import { AdminPage } from './App';
 
 export default function AdminApp() {

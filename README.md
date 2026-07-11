@@ -1,33 +1,28 @@
+# Mindex
 
-  # Mindex
+Mindex is a minimalist psychology journal search UI. The original Figma design is available at https://www.figma.com/design/k8wISJUeoxuVUOlenngLn2/Minimalist-Psychology-Journal-UI.
 
-  Mindex is a minimalist psychology journal search UI. The original Figma design is available at https://www.figma.com/design/k8wISJUeoxuVUOlenngLn2/Minimalist-Psychology-Journal-UI.
+## Running the code
 
-  ## Running the code
+```bash
+npm i
+cp .env.example .env.local
+npm run dev
+```
 
-  Run `npm i` to install the dependencies.
+Open http://localhost:3005
 
-  ### Frontend only (no database)
+Set `VITE_API_BASE_URL` to your Go API origin (default `https://mindex-api.duckdns.org`). See [docs/api-endpoints.md](docs/api-endpoints.md).
 
-  Run `npm run dev` — uses local seed data if API is unavailable.
+If the API is offline, the UI falls back to local seed data (read-only).
 
-  ### Full stack (frontend + API + Postgres)
+## Install as app (PWA)
 
-  1. Start local Postgres: `npm run db:up`
-  2. Copy env: `cp .env.example .env` and set `ADMIN_PASSWORD`
-  3. Run: `npm run dev:full`
-  4. Open http://localhost:3005
+This site is a Progressive Web App (still a website, installable to the home screen).
 
-  See [docs/local-postgres-setup.md](docs/local-postgres-setup.md) for VPS setup and troubleshooting.
+After deploying over **HTTPS** (or testing on `localhost`):
 
-  ## Install as app (PWA)
+- **Android (Chrome):** menu → **Install app** / **Add to Home screen**
+- **iOS (Safari):** Share → **Add to Home Screen**
 
-  This site is a Progressive Web App (still a website, installable to the home screen).
-
-  After deploying over **HTTPS** (or testing on `localhost`):
-
-  - **Android (Chrome):** menu → **Install app** / **Add to Home screen**
-  - **iOS (Safari):** Share → **Add to Home Screen**
-
-  Regenerating icons: `npm run icons:pwa`
-  
+Regenerating icons: `npm run icons:pwa`

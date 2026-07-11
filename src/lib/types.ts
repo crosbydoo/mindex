@@ -22,3 +22,39 @@ export interface Entry {
 }
 
 export type EntryInput = Omit<Entry, 'id'>;
+
+/** Standard API response envelope from the Go backend. */
+export interface ApiEnvelope<T> {
+  code: number;
+  status: boolean;
+  message: string;
+  data: T;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+}
+
+export interface PaginatedEntries {
+  items: Entry[];
+  pagination: Pagination;
+}
+
+export interface CategoryEntries {
+  category: string;
+  items: Entry[];
+  pagination: Pagination;
+}
+
+export interface CategoriesResponse {
+  categories: CategoryEntries[];
+}
+
+export interface FetchEntriesParams {
+  page?: number;
+  limit?: number;
+  category?: string;
+}
