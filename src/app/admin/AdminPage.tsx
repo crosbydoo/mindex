@@ -1437,7 +1437,9 @@ export function AdminPage({
 }) {
   const [authed, setAuthed] = useState(() => isAdminAuthenticated());
 
-  if (loading) {
+  // Only block on the first load. Remounting AdminDashboard on every refresh
+  // resets section back to Overview.
+  if (loading && entries.length === 0) {
     return (
       <main className="max-w-5xl mx-auto px-5 md:px-8 py-12">
         <p className="text-sm text-muted-foreground">Loading database…</p>

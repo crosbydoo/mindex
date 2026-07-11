@@ -11,7 +11,7 @@ import {
   updateEntry as apiUpdateEntry,
 } from '@/lib/api';
 import type { BulkActionResult, Entry, EntryInput } from '@/lib/types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const FALLBACK_ENTRIES: Entry[] = seedEntries.map((entry, index) => ({
   ...entry,
@@ -71,9 +71,14 @@ export function useEntries() {
   const [loading, setLoading] = useState(true);
   const [usingLocalFallback, setUsingLocalFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    // Only show full-page loading on the first fetch. Later refreshes
+    // (after mutate) must stay silent so admin section state is preserved.
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -85,6 +90,7 @@ export function useEntries() {
       setUsingLocalFallback(true);
       setError(err instanceof Error ? err.message : 'Failed to load entries');
     } finally {
+      hasLoadedRef.current = true;
       setLoading(false);
     }
   }, []);
