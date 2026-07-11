@@ -1,8 +1,8 @@
+import AdminApp from "@/app/AdminApp";
+import App from "@/app/App";
+import "@/styles/index.css";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
-import App from "@/app/App";
-import AdminApp from "@/app/AdminApp";
-import "@/styles/index.css";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
