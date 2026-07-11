@@ -2,25 +2,37 @@ import sharp from 'sharp';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const svg = readFileSync('public/favicon.svg');
 const outDir = 'public';
+const favicon = readFileSync('public/favicon.svg');
+const BG = { r: 3, g: 2, b: 19, alpha: 1 }; // #030213
 
-async function makeIcon(size, filename, { padded = false } = {}) {
-  if (!padded) {
-    await sharp(svg).resize(size, size).png().toFile(join(outDir, filename));
-    return;
-  }
+async function makeRounded(size, filename) {
+  // Scale favicon; keep alpha so rounded corners stay transparent
+  await sharp(favicon, { density: Math.max(72, size * 3) })
+    .resize(size, size, { fit: 'fill' })
+    .ensureAlpha()
+    .png()
+    .toFile(join(outDir, filename));
+}
 
-  const inner = Math.round(size * 0.7);
+async function makeMaskable(size, filename) {
+  // Full-bleed brand color for Android splash / adaptive icon
+  const inner = Math.round(size * 0.68);
   const pad = Math.round((size - inner) / 2);
-  const icon = await sharp(svg).resize(inner, inner).png().toBuffer();
 
+  const icon = await sharp(favicon, { density: Math.max(72, inner * 3) })
+    .resize(inner, inner, { fit: 'fill' })
+    .ensureAlpha()
+    .png()
+    .toBuffer();
+
+  // Composite rounded icon onto solid #030213 (matches main icon color)
   await sharp({
     create: {
       width: size,
       height: size,
       channels: 4,
-      background: { r: 3, g: 2, b: 19, alpha: 1 },
+      background: BG,
     },
   })
     .composite([{ input: icon, left: pad, top: pad }])
@@ -28,9 +40,9 @@ async function makeIcon(size, filename, { padded = false } = {}) {
     .toFile(join(outDir, filename));
 }
 
-await makeIcon(180, 'apple-touch-icon.png');
-await makeIcon(192, 'pwa-192x192.png');
-await makeIcon(512, 'pwa-512x512.png');
-await makeIcon(512, 'pwa-maskable-512x512.png', { padded: true });
+await makeRounded(180, 'apple-touch-icon.png');
+await makeRounded(192, 'pwa-192x192.png');
+await makeRounded(512, 'pwa-512x512.png');
+await makeMaskable(512, 'pwa-maskable-512x512.png');
 
-console.log('PWA icons generated in public/');
+console.log('PWA icons regenerated from favicon (rounded + #030213)');

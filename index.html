@@ -32,13 +32,36 @@
       body {
         height: 100%;
         margin: 0;
+        background: #030213;
       }
       #root {
         height: 100%;
       }
+      /* First-paint splash — matches PWA icon brand color */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: #030213;
+        transition: opacity 0.25s ease;
+      }
+      #app-splash[data-hide="true"] {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #app-splash img {
+        width: 88px;
+        height: 88px;
+        border-radius: 20px;
+      }
     </style>
   </head>
   <body>
+    <div id="app-splash" aria-hidden="true">
+      <img src="/apple-touch-icon.png" alt="" width="88" height="88" />
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

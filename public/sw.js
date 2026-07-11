@@ -1,5 +1,5 @@
 /* Mindex PWA service worker — cache app shell, network-first for API */
-const CACHE_VERSION = 'mindex-v1';
+const CACHE_VERSION = 'mindex-v2';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const API_CACHE = `${CACHE_VERSION}-api`;
 

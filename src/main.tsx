@@ -20,3 +20,10 @@ createRoot(document.getElementById("root")!).render(
     </Routes>
   </BrowserRouter>,
 );
+
+requestAnimationFrame(() => {
+  const splash = document.getElementById("app-splash");
+  if (!splash) return;
+  splash.setAttribute("data-hide", "true");
+  window.setTimeout(() => splash.remove(), 280);
+});
