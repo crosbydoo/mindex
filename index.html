@@ -26,6 +26,12 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="mask-icon" href="/favicon.svg" color="#030213" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Outfit:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
 
     <style>
       html,
@@ -37,7 +43,7 @@
       #root {
         height: 100%;
       }
-      /* First-paint splash — matches PWA icon brand color */
+
       #app-splash {
         position: fixed;
         inset: 0;
@@ -45,22 +51,90 @@
         display: grid;
         place-items: center;
         background: #030213;
-        transition: opacity 0.25s ease;
+        transition: opacity 0.35s ease, visibility 0.35s ease;
       }
       #app-splash[data-hide="true"] {
         opacity: 0;
+        visibility: hidden;
         pointer-events: none;
       }
-      #app-splash img {
-        width: 88px;
-        height: 88px;
-        border-radius: 20px;
+      #app-splash .splash-brand {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.25rem;
+        animation: splash-in 0.55s ease both;
+      }
+      #app-splash .splash-logo {
+        width: 96px;
+        height: 96px;
+        border-radius: 22px;
+        background: #030213;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+      #app-splash .splash-logo svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #app-splash .splash-text {
+        text-align: center;
+      }
+      #app-splash .splash-name {
+        margin: 0;
+        font-family: "Lora", Georgia, serif;
+        font-size: 2rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: #ffffff;
+        line-height: 1.1;
+      }
+      #app-splash .splash-tagline {
+        margin: 0.45rem 0 0;
+        font-family: "Outfit", system-ui, sans-serif;
+        font-size: 0.8125rem;
+        font-weight: 400;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+      }
+      @keyframes splash-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px) scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
       }
     </style>
   </head>
   <body>
-    <div id="app-splash" aria-hidden="true">
-      <img src="/apple-touch-icon.png" alt="" width="88" height="88" />
+    <div id="app-splash" aria-label="Loading Mindex">
+      <div class="splash-brand">
+        <div class="splash-logo" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img">
+            <rect width="32" height="32" rx="7" ry="7" fill="#030213" />
+            <g
+              fill="none"
+              stroke="#ffffff"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              transform="translate(6 3) scale(0.9)"
+            >
+              <path d="M12 3v18M6 3C6 9.627 8.686 14 12 14c3.314 0 6-4.373 6-11" />
+              <path d="M8 21h8" />
+            </g>
+          </svg>
+        </div>
+        <div class="splash-text">
+          <p class="splash-name">Mindex</p>
+          <p class="splash-tagline">Psychology Research Index</p>
+        </div>
+      </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
